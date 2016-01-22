@@ -57,21 +57,30 @@ compare.fcast.early <- function(fcast){
 }
 
 dist.target <- function(fcast){
-	M <- length(fcast)
 	
-	b <- vector(length = M)
-	s <- vector(length = M)
+	M <- length(fcast) # Number of models
+	
+	ME <- vector(length = M) # Mean Error
+	MAE <- vector(length = M) # Mean Absobule Error
+	MQE <- vector(length = M)   # Mean Quantile Error
 	
 	for(i in 1:M){
 		x <- fcast[[i]]
 		tg <- x$target.dat
 		n.tg <- length(tg)
-		n.f <- length(x$inc.f.m)
-		fm <- x$inc.f.m[(n.f-n.tg+1):n.f]
-		b[i] <- sum(fm/tg-1)
-		s[i] <- sum((fm/tg-1)^2)
+		n.f <- length(x$inc.f.m)  
+		
+		# Mean and quantiles of forecasts
+		frng <- (n.f-n.tg+1):n.f
+		n <- length(frng) # number of actual forecasts
+		fm <- x$inc.f.m[frng]
+		flo <- x$inc.f.lo[frng]
+		fhi <- x$inc.f.hi[frng]
+		ME[i] <- sum(fm/tg-1)/n
+		MAE[i] <- sum(abs(fm/tg-1))/n
+		MQE[i] <- sum(max(flo/tg-1,0))/n + sum(max(1-fhi/tg,0))/n 
 	}
-	df <- data.frame(model=names(fcast),b,s)
+	df <- data.frame(model=names(fcast),ME,MAE,MQE)
 	return(df)
 }
 

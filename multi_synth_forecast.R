@@ -9,15 +9,15 @@ save.to.file <- FALSE
 
 ### Large data set definition
 
-n.mc <- 9
-trunc <- 10
+n.mc <- 10
+trunc <- 9
 
 ### Model choice and associated parameters:
 # Models are:
 # WalLip  WhiPag  SeqBay 
 # CoriParam CoriNonParam CoriUncertain
 
-horiz.forecast <- 7
+horiz.forecast <- 4
 
 GI.mean <- 2.3
 GI.stdv<- 1
@@ -56,6 +56,9 @@ for(mc in 1:n.mc){
 	}
 }
 
+df$b <- sign(df$ME)*sqrt(abs(df$ME))
+df$s <- df$MAE + 1*df$MQE
+
 
 df.m <- ddply(df,c("model"),summarize, 
 			  b.m=mean(b), 
@@ -88,6 +91,6 @@ g <- g + geom_segment(data = df.m,
 					  	y=b.lo,yend=b.hi,
 					  	colour=model, shape=model),
 					  size=1)
-
+g <- g + geom_hline(yintercept=0,size=2,alpha=0.5,linetype=2)
 
 plot(g)
