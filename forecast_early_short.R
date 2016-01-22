@@ -80,6 +80,11 @@ plot.fcast <- function(model,
 		points(x=dat.full$t[f.rng], 
 			   y=inc.full,
 			   pch=3, col="red",lwd=3)
+		
+		legend(x = "topleft",bty = "n",
+			   pch=c(1,3), col=c("black","red"), 
+			   pt.cex = 2,
+			   legend = c("Forecast","Target"))
 	}
 	abline(v=tt[ntt],lty=2)
 }

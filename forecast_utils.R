@@ -54,6 +54,8 @@ compare.fcast.early <- function(fcast){
 		segments(x0=tgt+nudge[i],x1=tgt+nudge[i],y0=f.lo,y1=f.hi,col=i,lwd=3)
 		text(x=tgt[length(tgt)],y=f.m[length(f.m)],labels = names(fcast)[i],col=i,pos=4)
 	}
+	irng <- c(1:length(fcast))
+	legend(x="topleft",col = irng, pch=14+irng, legend = names(fcast))
 }
 
 dist.target <- function(fcast){

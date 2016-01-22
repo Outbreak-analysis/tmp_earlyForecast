@@ -5,11 +5,12 @@ source("forecast_early_short.R")
 source("forecast_utils.R")
 
 save.to.file <- FALSE
+do.all.plot <- TRUE 
 
 ### Read incidence data:
 
-trunc <- 10
-mc <- 3
+trunc <- 19
+mc <- 20
 
 dat <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
 					  objname = "inc.tb",
@@ -23,13 +24,12 @@ dat.full <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
 						   truncate.date = NULL,
 						   mc.choose = mc)
 
-
 ### Model choice and associated parameters:
 # Models are:
 # WalLip  WhiPag  SeqBay 
 # CoriParam CoriNonParam CoriUncertain
 
-horiz.forecast <- 7
+horiz.forecast <- 12
 GI.mean <- 2.3
 GI.stdv<- 1
 
@@ -60,14 +60,15 @@ PRM <- list(Cori = list(model = "CoriParam",
 						  horiz.forecast = horiz.forecast,  
 						  GI.dist = "gamma",  # gamma, lognormal, weibull
 						  GI.val = c(GI.mean,GI.stdv))
-			
 )
 
 ### Forecast
 
 if (save.to.file) pdf("forecast_early.pdf", width=15,height=10)
 
-fcast <- lapply(PRM,fcast.inc.early.short,do.plot=FALSE)
+fcast <- lapply(PRM,
+				fcast.inc.early.short,
+				do.plot=do.all.plot)
 
 par(mfrow=c(1,1))
 compare.fcast.early(fcast)

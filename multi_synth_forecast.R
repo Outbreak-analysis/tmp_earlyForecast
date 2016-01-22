@@ -9,7 +9,7 @@ save.to.file <- FALSE
 
 ### Large data set definition
 
-n.mc <- 10
+n.mc <- 25
 trunc <- 9
 
 ### Model choice and associated parameters:
