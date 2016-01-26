@@ -206,9 +206,25 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 							  truncate = GI.truncate,
 							  step = 1 )
 		# Estimate R
-		R <- estimate.R(epid = dat$inc ,
-						GT=GI, 
-						methods=model2)
+		
+		inc <- dat$inc
+		if (model=="SeqBay"){
+			# There is a conceptual problem with this model
+			# when incidence data = 0, because:
+			# I[t+1] ~ Poisson(*I[t])
+			# so when I[t]=0, probability(I[t+1]>0)=0
+			# (bc the poisson intensity is 0)
+			#
+			# So, try to go round this issue by
+			# artificially nudging incidence away from 0 (e.g. to 1)
+			if(any(inc==0)) {
+				warning("Incidence was changed for SeqBay method")
+				inc[inc==0] <- 1
+			}
+		}
+		R <- estimate.R(epid = inc ,
+						GT = GI, 
+						methods = model2)
 	}
 	# EpiEstim package
 	if(grepl(pattern = "Cori",x = model)){
