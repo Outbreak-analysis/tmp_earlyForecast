@@ -1,65 +1,77 @@
 library(ggplot2);theme_set(theme_bw())
 library(plyr)
+library(snowfall)
+
 source("read-data.R")
 source("forecast_early_short.R")
 source("forecast_utils.R")
 
-save.to.file <- FALSE
+save.to.file <- TRUE
 
+t1 <- as.numeric(Sys.time())
+
+load("./data/SEmInR_sim.Rdata")
+nE.true <- param.synthetic.sim[["nE"]]
+nI.true <- param.synthetic.sim[["nI"]]
+DOL.true <- param.synthetic.sim[["DOL.days"]]
+DOI.true <- param.synthetic.sim[["DOI.days"]]
 
 ### Large data set definition
 
-n.mc <- 25
-trunc <- 9
+# Number of synthetic data set 
+# that will be forecasted:
+n.mc <- 200
 
-### Model choice and associated parameters:
-# Models are:
-# WalLip  WhiPag  SeqBay 
-# CoriParam CoriNonParam CoriUncertain
+n.cores <- 4
 
+# Truncation date (synthetic beyond
+# this time is supposed unknown)
+trunc <- 12
+
+# Forecast horizon (time units after last know data)
 horiz.forecast <- 4
 
-GI.mean <- 2.3
+# Generation interval
+bias <- 1.0
+GI.mean <- bias * (DOL.true+DOI.true/2)  # approx!
 GI.stdv<- 1
 
+# This loop performs the forecast 
+# on every synthetic data set.
+# Each forecast is evaluated with 
+# specified metrics.
+# All forecasts are merged in one data frame.
+#
+if (save.to.file) pdf("plots.pdf")
 
-for(mc in 1:n.mc){
-	# Read incidence data:
-	dat <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
-						  objname = "inc.tb",
-						  type = "simulated",
-						  truncate.date = trunc,
-						  mc.choose = mc)
-	dat.full <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
-							   objname = "inc.tb",
-							   type = "simulated",
-							   truncate.date = NULL,
-							   mc.choose = mc)
-	# Set model parameters:
-	PRM <- get.model.prm(dat,
-						 dat.full,
-						 horiz.forecast ,  
-						 GI.mean,GI.stdv,
-						 GI.dist="gamma",
-						 cori.window=3)
-	# Forecast:
-	fcast <- try(lapply(PRM,fcast.inc.early.short,do.plot=FALSE),silent = TRUE)
-	
-	if(class(fcast)!="try-error"){
-		print(paste("forecast",mc,"/",n.mc,"done."))
-		
-		df.tmp <- dist.target(fcast)
-		df.tmp$mc <- mc
-		
-		if (mc==1) df <- df.tmp
-		if (mc>1) df <- rbind(df,df.tmp)
-	}
-}
+sfInit(parallel = TRUE, cpu = n.cores)
+sfLibrary(R0)
+sfLibrary(EpiEstim)
 
-df$b <- sign(df$ME)*sqrt(abs(df$ME))
+idx.apply <- 1:n.mc
+
+### Parallel execution:
+sfExportAll()
+res <- sfSapply(idx.apply, 
+				simplify = FALSE,
+				fcast.wrap, 
+				datafilename = "./data/SEmInR_sim.Rdata",
+				trunc = trunc,
+				horiz.forecast =horiz.forecast ,
+				GI.mean = GI.mean,
+				GI.stdv =GI.stdv ,
+				GI.dist ="gamma" ,
+				cori.window = 3,
+				do.plot = TRUE)
+sfStop()
+df <- do.call("rbind", res)
+
+# Specify the (modified) measures to be plotted:
+df$b <- sign(df$ME)*(abs(df$ME))^(1/4)
 df$s <- df$MAE + 1*df$MQE
 
-
+# Summarize forecast performance across
+# all synthetic data sets:
 df.m <- ddply(df,c("model"),summarize, 
 			  b.m=mean(b), 
 			  s.m=mean(s),
@@ -71,26 +83,41 @@ df.m <- ddply(df,c("model"),summarize,
 			  s.hi=quantile(s,probs = 0.9)
 )
 
-g <- ggplot(df)
-g <- g + geom_point(aes(x=log(s),y=b,
-						colour=model, shape=model),
-					size=3, alpha=0.5)
-g <- g + geom_point(data = df.m, 
-					aes(x=log(s.m),y=(b.m),
-						colour=model, shape=model),
-					size=6)
-
+g <- ggplot(df.m)
 g <- g + geom_segment(data = df.m, 
 					  aes(x=log(s.lo),xend=log(s.hi),
-					  	y=b.m,yend=b.m,
+					  	y=b.md,yend=b.md,
 					  	colour=model, shape=model),
 					  size=1)
+
+g <- g + ggtitle(paste("GI bias =",bias))
 
 g <- g + geom_segment(data = df.m, 
 					  aes(x=log(s.md),xend=log(s.md),
 					  	y=b.lo,yend=b.hi,
 					  	colour=model, shape=model),
 					  size=1)
+
+g <- g + geom_point(data = df.m, 
+					aes(x=log(s.md),y=(b.md),
+						colour=model, shape=model),
+	  				size=4)
+
+g <- g + geom_point(data = df.m, 
+					aes(x=log(s.m),y=(b.m),
+						colour=model, shape=model),
+					size=6)
+
 g <- g + geom_hline(yintercept=0,size=2,alpha=0.5,linetype=2)
 
 plot(g)
+
+g <- g + geom_point(data = df, aes(x=log(s),y=b,
+						colour=model, shape=model),
+					size=2, alpha=0.2)
+plot(g)
+
+if (save.to.file) dev.off()
+
+t2 <- as.numeric(Sys.time())
+message(paste("Finished in",round((t2-t1)/60,2),"min"))

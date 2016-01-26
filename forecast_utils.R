@@ -124,3 +124,42 @@ get.model.prm <- function(dat,
 	)
 	return(PRM)
 }
+
+
+fcast.wrap <- function(mc,datafilename,trunc,horiz.forecast,
+					   GI.mean,GI.stdv,
+					   GI.dist="gamma",
+					   cori.window=3,
+					   do.plot=FALSE){
+	# Read incidence data:
+	dat <- read.incidence(filename = datafilename,
+						  objname = "inc.tb",
+						  type = "simulated",
+						  truncate.date = trunc,
+						  mc.choose = mc)
+	dat.full <- read.incidence(filename = datafilename,
+							   objname = "inc.tb",
+							   type = "simulated",
+							   truncate.date = NULL,
+							   mc.choose = mc)
+	# Set parameters for every models:
+	PRM <- get.model.prm(dat,
+						 dat.full,
+						 horiz.forecast ,  
+						 GI.mean,GI.stdv,
+						 GI.dist=GI.dist,
+						 cori.window=cori.window)
+	# Forecast:
+	fcast <- try(lapply(PRM,
+						fcast.inc.early.short,
+						do.plot=do.plot),
+				 silent = TRUE)
+	
+	# Merge all results in one data frame:	
+	df.tmp <- NULL
+	if(class(fcast)!="try-error"){
+		df.tmp <- dist.target(fcast)
+		df.tmp$mc <- mc
+	}
+	return(df.tmp)
+}
