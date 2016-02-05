@@ -20,8 +20,7 @@ DOI.true <- param.synthetic.sim[["DOI.days"]]
 
 # Number of synthetic data set 
 # that will be forecasted:
-n.mc <- 200
-
+n.mc <- 20
 n.cores <- 4
 
 # Truncation date (synthetic beyond
@@ -44,7 +43,7 @@ GI.stdv<- 1
 #
 if (save.to.file) pdf("plots.pdf")
 
-sfInit(parallel = TRUE, cpu = n.cores)
+sfInit(parallel = (n.cores>1), cpu = n.cores)
 sfLibrary(R0)
 sfLibrary(EpiEstim)
 
