@@ -360,7 +360,7 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 	if (model=="IDEA") {
 		x <- idea.forecast(data = dat$inc,
 						   horiz.forecast = horiz.forecast,
-						   GI = GI.mean,
+						   GI = GI.val[1],
 						   ignore.data = 1)
 		inc.f.m <- c(inc.f.m, x[["inc.fcast"]])
 		inc.f.hi <- inc.f.lo <- inc.f.m
@@ -389,6 +389,7 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 				inc.f.m = inc.f.m,
 				inc.f.lo = inc.f.lo,
 				inc.f.hi = inc.f.hi,
+				obs.dat = dat$inc,
 				target.dat = target.dat) )
 }
 
