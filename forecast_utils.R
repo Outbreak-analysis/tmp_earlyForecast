@@ -121,6 +121,13 @@ get.model.prm <- function(dat,
 							  horiz.forecast = horiz.forecast,  
 							  GI.dist = "gamma",  # gamma, lognormal, weibull
 							  GI.val = c(GI.mean,GI.stdv))
+				,
+				
+				IDEA = list(model = "IDEA",
+							dat = dat,
+							dat.full = dat.full,
+							horiz.forecast = horiz.forecast,  
+							GI.val = GI.mean)
 	)
 	return(PRM)
 }
@@ -146,9 +153,10 @@ fcast.wrap <- function(mc,datafilename,trunc,horiz.forecast,
 	PRM <- get.model.prm(dat,
 						 dat.full,
 						 horiz.forecast ,  
-						 GI.mean,GI.stdv,
-						 GI.dist=GI.dist,
-						 cori.window=cori.window)
+						 GI.mean, 
+						 GI.stdv,
+						 GI.dist = GI.dist,
+						 cori.window = cori.window)
 	# Forecast:
 	fcast <- try(lapply(PRM,
 						fcast.inc.early.short,

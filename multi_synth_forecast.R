@@ -16,22 +16,25 @@ nI.true <- param.synthetic.sim[["nI"]]
 DOL.true <- param.synthetic.sim[["DOL.days"]]
 DOI.true <- param.synthetic.sim[["DOI.days"]]
 
+### Unpack parameters used for backtesting:
+prm <- read.csv("prm_multi_bcktest.csv",header = FALSE)
+
 ### Large data set definition
 
 # Number of synthetic data set 
 # that will be forecasted:
-n.mc <- 20
-n.cores <- 4
+n.mc <- prm[prm[,1]=="n.mc",2]
+n.cores <- prm[prm[,1]=="n.cores",2]
 
 # Truncation date (synthetic beyond
 # this time is supposed unknown)
-trunc <- 12
+trunc <- prm[prm[,1]=="trunc",2]
 
 # Forecast horizon (time units after last know data)
-horiz.forecast <- 4
+horiz.forecast <- prm[prm[,1]=="horiz.forecast",2]
 
 # Generation interval
-bias <- 1.0
+bias <- prm[prm[,1]=="GI.bias",2]
 GI.mean <- bias * (DOL.true+DOI.true/2)  # approx!
 GI.stdv<- 1
 
@@ -56,10 +59,10 @@ res <- sfSapply(idx.apply,
 				fcast.wrap, 
 				datafilename = "./data/SEmInR_sim.Rdata",
 				trunc = trunc,
-				horiz.forecast =horiz.forecast ,
+				horiz.forecast = horiz.forecast ,
 				GI.mean = GI.mean,
-				GI.stdv =GI.stdv ,
-				GI.dist ="gamma" ,
+				GI.stdv = GI.stdv ,
+				GI.dist = "gamma" ,
 				cori.window = 3,
 				do.plot = TRUE)
 sfStop()

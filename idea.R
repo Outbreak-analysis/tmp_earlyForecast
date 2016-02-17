@@ -1,5 +1,7 @@
 ### 
 ### IMPLEMENT 'IDEA' MODEL BY FISMAN ET AL.
+### Fisman DN, Hauck TS, Tuite AR, Greer AL (2013) 
+### An IDEA for Short Term Outbreak Projection: Nearcasting Using the Basic Reproduction Number. PLoS ONE 8(12): e83622. doi:10.1371/journal.pone.0083622
 ###
 
 idea.inc <- function(t,R0,d,GI,I0=1) {
@@ -12,7 +14,6 @@ idea.inc <- function(t,R0,d,GI,I0=1) {
 	
 	return(I0 * (R0/(1+d)^tau)^tau )
 }
-
 
 
 idea.fit <- function(inc, GI, I0, 
@@ -95,100 +96,86 @@ idea.fit <- function(inc, GI, I0,
 
 
 idea.forecast <- function(data, 
-						  horiz.forecast,
+						  horiz.forecast, # how many time units ahead to forecast
 						  GI, 
 						  ignore.data= 0, 
 						  do.plot = FALSE){
 	
-	t <- c(1:horiz.forecast)
+	n.data <- length(data)
 	
-	stopifnot(horiz.forecast>length(data))
+	t <- c(1:(n.data+horiz.forecast))
 	
-	x <- idea.fit(inc=data, 
-				  GI=GI, 
+	# Fit to data
+	x <- idea.fit(inc = data, 
+				  GI = GI, 
 				  ignore.data = ignore.data,
 				  do.plot = do.plot)
 	
-	inc.fcast <- idea.inc(t = t, 
-						  R0 = x["R0"], 
-						  d = x["d"], 
-						  I0 = x["I0"],
-						  GI = GI)
+	# Calculate incidence from IDEA formula
+	# and fitted parameters:
+	inc.idea <- idea.inc(t = t, 
+						 R0 = x["R0"], 
+						 d = x["d"], 
+						 I0 = x["I0"],
+						 GI = GI)
+	
+	# Keep only the forecasted points:
+	fcast.rng <- (n.data+1):(n.data+horiz.forecast)
+	inc.fcast <- inc.idea[fcast.rng]
 	
 	if(do.plot){
 		par(mfrow=c(1,2))
-		plot(t,log(inc.fcast), typ="o", col="blue", lwd=2,
-			 ylim = c(0,log(max(inc.fcast,data))))
-		points(1:length(data),log(data),pch=16,cex=1)
-		lines(1:length(data),log(data),typ="s")
-		abline(v=ignore.data, lty=2)
-		abline(v=last.date, lty=2)
 		
-		plot(t,(inc.fcast), typ="o", col="blue", lwd=2,
-			 ylim = c(0,(max(inc.fcast,data))))
+		plot(t, (inc.idea), 
+			 main = "IDEA forecast",
+			 typ="l", 
+			 col="blue", lwd=2,
+			 ylim = c(0,(max(inc.idea,data))))
+		points(t[fcast.rng],(inc.fcast),col="blue", lwd=3)
 		points(1:length(data),(data),pch=16,cex=1)
 		lines(1:length(data),(data),typ="s")
 		abline(v=ignore.data, lty=2)
 		abline(v=last.date, lty=2)
+		grid()
+		
+		plot(t, log(inc.idea), 
+			 main = "IDEA forecast (log scale)",
+			 typ="l", 
+			 col="blue", lwd=2,
+			 ylim = c(0,log(max(inc.idea,data))))
+		points(t[fcast.rng],log(inc.fcast),col="blue", lwd=3)
+		points(1:length(data),log(data),pch=16,cex=1)
+		lines(1:length(data),log(data),typ="s")
+		abline(v=ignore.data, lty=2)
+		abline(v=last.date, lty=2)
+		grid()
 	}
-	
-	return(inc.fcast)
+	return(list(inc.fcast = inc.fcast,
+				R0 = x["R0"],
+				d = x["d"]) )
 }
 
 
 # - - - - - -  - - - - - - - - - - - - - -  - - - 
+# - - - - - -  - - - - - - - - - - - - - -  - - - 
 
-load("./data/SEmInR_sim.Rdata")
-data.full <- subset(inc.tb, mc==2)
-t <- 1:nrow(data.full)
+do.test <- FALSE 
 
-ignore.data <- 6
-last.date <- 15
-horiz.forecast <- last.date + 7
-
-data  <- data.full$inc[1:last.date]
-
-GI <- 4
-
-idea.forecast(data, 
-			  horiz.forecast,
-			  GI, 
-			  ignore.data, 
-			  do.plot = TRUE)
-
-
-
-# 
-# x <- idea.fit(inc=inc, GI=GI, 
-# 			  ignore.data = ignore.data,
-# 			  do.plot = T)
-# 
-# print(x)
-# inc.fcast <- idea.inc(t = t, 
-# 					  R0 = x["R0"], 
-# 					  d = x["d"], 
-# 					  I0 = x["I0"],
-# 					  GI = GI)
-# 
-# inc.fcast.lo <- idea.inc(t = t, 
-# 						 R0 = x["R0.lo"], 
-# 						 d = x["d.lo"], 
-# 						 I0 = x["I0.lo"],
-# 						 GI = GI)
-# 
-# inc.fcast.hi <- idea.inc(t = t, 
-# 						 R0 = x["R0.hi"], 
-# 						 d = x["d.hi"],
-# 						 I0 = x["I0.hi"],
-# 						 GI = GI)
-# 
-# par(mfrow=c(1,1))
-# plot(t,log(data.full$inc), typ="s",
-# 	 ylim = c(0,log(max(inc.fcast,data.full$inc))))
-# points(t,log(data.full$inc),pch=16,cex=0.6)
-# lines(t,log(inc.fcast),col="blue",lwd=2)
-# lines(t,log(inc.fcast.lo),col="blue", lty=3)
-# lines(t,log(inc.fcast.hi),col="blue", lty=3)
-# abline(v=ignore.data, lty=2)
-# abline(v=last.date, lty=2)
-# 
+if(do.test){
+	load("./data/SEmInR_sim.Rdata")
+	data.full <- subset(inc.tb, mc==2)
+	t <- 1:nrow(data.full)
+	
+	ignore.data <- 6
+	last.date <- 15
+	horiz.forecast <- 7
+	GI <- 4
+	
+	data  <- data.full$inc[1:last.date]
+	
+	x <- idea.forecast(data, 
+					   horiz.forecast,
+					   GI, 
+					   ignore.data, 
+					   do.plot = TRUE)
+}

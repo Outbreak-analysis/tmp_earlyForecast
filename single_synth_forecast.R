@@ -1,3 +1,7 @@
+###
+###   COMPARE VARIOUS FORECASTING MODEL
+###   ON A SINGLE SYNTHETIC DATA SET
+###
 
 
 source("read-data.R")
@@ -9,9 +13,19 @@ do.all.plot <- TRUE
 
 ### Read incidence data:
 
-trunc <- 19
+# Data set number
+# (several have been pre-simulated):
 mc <- 20
 
+# Synthetic data beyond this date
+# are assumed unknown:
+trunc <- 19
+
+# How far beyond the last known date
+# should the forecast be performed:
+horiz.forecast <- 7
+
+# Load pre-simulated synthetic data:
 dat <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
 					  objname = "inc.tb",
 					  type = "simulated",
@@ -24,43 +38,20 @@ dat.full <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
 						   truncate.date = NULL,
 						   mc.choose = mc)
 
+# GI values inputed in models:
+GI.mean <- 2.3
+GI.stdv<- 1
+
 ### Model choice and associated parameters:
 # Models are:
 # WalLip  WhiPag  SeqBay 
 # CoriParam CoriNonParam CoriUncertain
-
-horiz.forecast <- 12
-GI.mean <- 2.3
-GI.stdv<- 1
-
-PRM <- list(Cori = list(model = "CoriParam",  
-						dat = dat,
-						dat.full = dat.full,
-						horiz.forecast = horiz.forecast,  
-						GI.val = c(GI.mean,GI.stdv),
-						cori.window = 3),
-			
-			WalLip = list(model = "WalLip",
-						  dat = dat,
-						  dat.full = dat.full,
-						  horiz.forecast = horiz.forecast,  
-						  GI.dist = "gamma",  # gamma, lognormal, weibull
-						  GI.val = c(GI.mean,GI.stdv)),
-			
-			WhiPag = list(model = "WhiPag",
-						  dat = dat,
-						  dat.full = dat.full,
-						  horiz.forecast = horiz.forecast,  
-						  GI.dist = "gamma",  # gamma, lognormal, weibull
-						  GI.val = c(GI.mean,GI.stdv)),
-			
-			SeqBay = list(model = "SeqBay",
-						  dat = dat,
-						  dat.full = dat.full,
-						  horiz.forecast = horiz.forecast,  
-						  GI.dist = "gamma",  # gamma, lognormal, weibull
-						  GI.val = c(GI.mean,GI.stdv))
-)
+PRM <- get.model.prm(dat,
+					 dat.full,
+					 horiz.forecast ,  
+					 GI.mean,GI.stdv,
+					 GI.dist,
+					 cori.window = 3)
 
 ### Forecast
 

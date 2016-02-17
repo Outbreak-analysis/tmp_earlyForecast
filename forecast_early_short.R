@@ -1,6 +1,6 @@
 library(R0)
 library(EpiEstim)
-
+source("idea.R")
 
 plot.GI <- function(g, GI.dist){
 	n <- length(g)
@@ -60,12 +60,19 @@ plot.fcast <- function(model,
 	
 	title <- paste(model,"forecast time series\n",Restim)
 	
+	yrng <- c(0,max(inc.f.hi))
+	if(!is.null(dat.full)) {
+		inc.full <- dat.full$inc[f.rng]
+		if(log) inc.full <- log(dat.full$inc[f.rng])
+		yrng <- c(0,max(inc.f.hi,inc.full))
+	}
+	
 	plot(x= c(tt,(length(tt)+1):nf),
 		 y=inc.f.m,
 		 cex=2, lwd=2,
 		 main = title,
 		 xlab="time", ylab=ylab,
-		 ylim=c(0,max(inc.f.hi)))
+		 ylim=yrng)
 	
 	polygon(x=c(f.rng,rev(f.rng)),
 			y = c(inc.f.lo[f.rng],rev(inc.f.hi[f.rng])),
@@ -74,7 +81,7 @@ plot.fcast <- function(model,
 	points(inc,pch=16)
 	
 	if(!is.null(dat.full)){
-		inc.full <- dat.full$inc[f.rng]
+		
 		if(log) inc.full <- log(dat.full$inc[f.rng])
 		
 		points(x=dat.full$t[f.rng], 
@@ -117,7 +124,7 @@ plot.fcast.vs.actual <- function(dat,
 		 xlab="Actual incidence", 
 		 ylab="Forecast incidence",
 		 main = title,
-		 ylim=range(inc.f.lo[f.rng],inc.f.hi[f.rng]),
+		 ylim=range(inc.f.lo[f.rng],inc.f.hi[f.rng],inc.full),
 		 cex=2,lwd=3)
 	
 	segments(x0=inc.full, x1=inc.full,
@@ -175,6 +182,7 @@ translate.model <- function(x){
 	if(x=="CoriParam") res <- "ParametricSI"
 	if(x=="CoriNonParam") res <- "NonParametricSI"
 	if(x=="CoriUncertain") res <- "UncertainSI"
+	if(x=="IDEA") res <- "IDEA"
 	
 	if(is.na(res)) stop(paste("Model name unknown:",x))
 	return(res)
@@ -187,12 +195,18 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 	
 	# Unpack parameters depending on model 
 	model <- prms[["model"]]
-	pname <- c("dat","dat.full", "horiz.forecast","GI.dist","GI.val","GI.truncate")
+	
+	pname <- c("dat","dat.full", "horiz.forecast",
+			   "GI.dist","GI.val","GI.truncate")
+	
 	pname.cori <- c("cori.window","cori.mean.prior","cori.std.prior","Std.Mean.SI","Min.Mean.SI",
 					"Max.Mean.SI","Std.SI", "Std.Std.SI", "Min.Std.SI", "Max.Std.SI", 
 					"n.coriUnc.meanstdv", "n.coriUnc.postR")
+	
 	if(grepl("Cori",model)) pname <- c(pname,pname.cori)
 	for(p in pname) assign(x=p,value=prms[[p]])
+	
+	# message(paste("Forecasting with model",model))
 	
 	#  ==== Estimate R ====
 	
@@ -284,6 +298,7 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 	
 	# ==== Forecast ====
 	
+	g <- NULL
 	inc.f.m <- inc.f.lo <- inc.f.hi <- dat$inc
 	
 	# -- Retrieve GI distribution:
@@ -342,6 +357,17 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 		inc.f.hi <- c(inc.f.hi, inc.f.hi[n.i] * tmp.hi)
 	}
 	
+	if (model=="IDEA") {
+		x <- idea.forecast(data = dat$inc,
+						   horiz.forecast = horiz.forecast,
+						   GI = GI.mean,
+						   ignore.data = 1)
+		inc.f.m <- c(inc.f.m, x[["inc.fcast"]])
+		inc.f.hi <- inc.f.lo <- inc.f.m
+		R <- R.m <- R.hi <- R.lo <- x[["R0"]]
+	}
+	
+	
 	Restim <- paste0(round(R.m,2)," (",
 					 round(R.lo,2),";",
 					 round(R.hi,2),")")
@@ -351,20 +377,18 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 		par(mfrow=c(3,2))
 		plot.exp.phase(dat)
 		plot.GI(g,GI.dist)
-		plot.all(model,Restim,dat, dat.full, inc.f.m, inc.f.lo, inc.f.hi)
+		plot.all(model, Restim,dat, dat.full, 
+				 inc.f.m, inc.f.lo, inc.f.hi)
 	}
 	
 	# Target data (if exists, for testing purpose)
 	target.dat <- NULL
 	if(!is.null(dat.full)) target.dat <- dat.full$inc[(length(dat$t)+1):length(inc.f.m)]
-	
 		
 	return(list(R=R,
 				inc.f.m = inc.f.m,
 				inc.f.lo = inc.f.lo,
 				inc.f.hi = inc.f.hi,
-				target.dat = target.dat
-	)
-	)
+				target.dat = target.dat) )
 }
 

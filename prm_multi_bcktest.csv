@@ -1,0 +1,5 @@
+n.mc,200
+n.cores,3
+trunc,12
+horiz.forecast, 4
+GI.bias, 1.0
