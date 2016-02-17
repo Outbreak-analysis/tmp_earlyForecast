@@ -1,4 +1,82 @@
 
+dolog <- TRUE
+
+compare.fcast.early.2 <- function(fcast, dolog){
+	### Compare forecasts
+	
+	n.model <- length(fcast)
+	
+	tgt <- fcast[[1]]$target.dat
+	n.tgt <- length(tgt)
+	n <- length(fcast[[1]]$inc.f.m)
+	frng <- (n-n.tgt+1):n
+	n.obs <- length(fcast[[1]]$obs.dat)
+	
+	obs.dat <- fcast[[1]]$obs.dat
+	tgt.dat <- fcast[[1]]$target.dat
+
+	ymax <- 0
+	for (i in 1:length(fcast)) 
+		ymax <- max(ymax, fcast[[i]]$inc.f.hi)
+	
+	if(dolog){
+		obs.dat <- log(obs.dat)
+		tgt.dat <- log(tgt.dat)
+		ymax <- log(ymax)
+	}
+	
+	plot(0, cex=0,
+		 xlim = c(1,length(fcast[[i]]$inc.f.m)),
+		 ylim = c(0,ymax),
+		 las = 1,
+		 xlab = "time",
+		 ylab = "")
+	grid(lty=2,col="lightgrey")
+	
+	nudge <- 0.15*c(0:(length(fcast)-1))
+	nudge <- nudge-mean(nudge)
+	
+	# Plot observed data:
+	points(x = 1:n.obs, y = obs.dat,typ="s")
+	points(x = 1:n.obs, y = obs.dat,typ="p", pch=16)
+	# Plot future data if available:
+	if(!is.null(tgt.dat)){
+		points(x = frng, y = tgt.dat, 
+			   cex = 3,
+			   col="lightgrey", pch=15)
+	}
+	
+	lwd.fcast <- 4
+	
+	for (i in 1:n.model) {
+		
+		f.m <- fcast[[i]]$inc.f.m[frng]
+		f.hi <- fcast[[i]]$inc.f.hi[frng]
+		f.lo <- fcast[[i]]$inc.f.lo[frng]
+		
+		if(dolog){
+			f.m <- log(f.m)
+			f.hi <- log(f.hi)
+			f.lo <- log(f.lo)
+		}
+		
+		points(x = frng+nudge[i],
+			   y = f.m,
+			   col = i, 
+			   lwd = lwd.fcast, cex = 1.3)
+		segments(x0=frng+nudge[i], x1=frng+nudge[i],
+				 y0 = f.lo, y1 = f.hi, col=i, lwd=lwd.fcast/2)
+	}
+	
+	legend(x="topleft",legend = names(fcast),col=c(1:n.model),lwd=lwd.fcast,pch = 1)
+
+}
+
+
+# compare.fcast.early.2(fcast, dolog = T)
+
+
+
 compare.fcast.early <- function(fcast){
 	### Compare forecasts
 	
