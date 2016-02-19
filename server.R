@@ -20,6 +20,7 @@ shinyServer(function(input, output) {
 			GI.dist <- input$GI.dist
 			GI.mean <- input$GI.mean
 			GI.stdv <- input$GI.stdv
+			cori.window <- input$cori.window
 			dolog <- input$dolog
 			
 			# Load data:
@@ -54,7 +55,7 @@ shinyServer(function(input, output) {
 								 horiz.forecast ,  
 								 GI.mean,GI.stdv,
 								 GI.dist,
-								 cori.window = 3)
+								 cori.window = cori.window)
 			
 			PRM.chosen <- PRM[models]
 			

@@ -37,17 +37,27 @@ shinyUI(fluidPage(
 					 			 step = 1,
 					 			 value = 10)
 					 ,
-					 checkboxGroupInput("model", 
-					 				   "Model:", 
-					 				   choices = model.names,
-					 				   selected = "Cori")
-					 ,
 					 numericInput("fcast.horiz",
 					 			 "Forecast horizon :",
 					 			 min = 1,
 					 			 step = 1,
 					 			 value = 7) 
 					 ,
+					 checkboxInput("dolog",
+					 			  "Log scale")
+					 ,
+					 checkboxGroupInput("model", 
+					 				   "Model:", 
+					 				   choices = model.names,
+					 				   selected = "Cori")
+					 ,
+					 numericInput("cori.window",
+					 			 "Cori window size:",
+					 			 min = 1,
+					 			 step = 1,
+					 			 value = 3)
+					 ,
+					 
 					 selectInput("GI.dist",
 					 			"GI distribution :",
 					 			choices = c("gamma","lognormal"),
@@ -64,9 +74,6 @@ shinyUI(fluidPage(
 					 			 min = 1,
 					 			 step = 0.1,
 					 			 value = 1.1)
-					 ,
-					 checkboxInput("dolog",
-					 			  "Log scale")
 					 
 		) # END SIDEBAR PANEL
 		
