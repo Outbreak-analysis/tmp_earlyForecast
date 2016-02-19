@@ -59,26 +59,14 @@ shinyServer(function(input, output) {
 			PRM.chosen <- PRM[models]
 			
 			### Forecast
-			
 			fcast <- lapply(PRM.chosen,
 							fcast.inc.early.short,
 							do.plot= FALSE)
-			
+			# plot forecast
 			compare.fcast.early.2(fcast, dolog = dolog)
-			
-			# compare.fcast.early(fcast)
-			# 	plot(dat$t, 
-			# 		 dat$inc,
-			# 		 main = input$model,
-			# 		 typ="s")
-			# 	points(dat$t, 
-			# 		   dat$inc,pch=16)
-			#   
-			
-			
 		},
-		height=900, 
-		width=900)
+		height=700, 
+		width=700)
 	
 	
 })

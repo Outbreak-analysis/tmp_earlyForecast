@@ -20,9 +20,9 @@ compare.fcast.early.2 <- function(fcast, dolog){
 		ymax <- max(ymax, fcast[[i]]$inc.f.hi)
 	
 	if(dolog){
-		obs.dat <- log(obs.dat)
-		tgt.dat <- log(tgt.dat)
-		ymax <- log(ymax)
+		obs.dat <- log10(obs.dat)
+		tgt.dat <- log10(tgt.dat)
+		ymax <- log10(ymax)
 	}
 	
 	plot(0, cex=0,
@@ -55,9 +55,9 @@ compare.fcast.early.2 <- function(fcast, dolog){
 		f.lo <- fcast[[i]]$inc.f.lo[frng]
 		
 		if(dolog){
-			f.m <- log(f.m)
-			f.hi <- log(f.hi)
-			f.lo <- log(f.lo)
+			f.m <- log10(f.m)
+			f.hi <- log10(f.hi)
+			f.lo <- log10(f.lo)
 		}
 		
 		points(x = frng+nudge[i],
@@ -67,9 +67,7 @@ compare.fcast.early.2 <- function(fcast, dolog){
 		segments(x0=frng+nudge[i], x1=frng+nudge[i],
 				 y0 = f.lo, y1 = f.hi, col=i, lwd=lwd.fcast/2)
 	}
-	
 	legend(x="topleft",legend = names(fcast),col=c(1:n.model),lwd=lwd.fcast,pch = 1)
-
 }
 
 
