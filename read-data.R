@@ -1,7 +1,70 @@
 
+find.epi.start <- function(inc,w, thres.rate, doplot = FALSE) {
+	
+	### Identify the start of an epidemic
+	### Try to discard "noisy/fizzly" begining and
+	### locate the start of significant outbreak.
+	### Use simple linear regression on 'slices'
+	### of incidence data
+	
+	tt <- 1:length(inc)
+	K <- vector()
+	
+	if(doplot){
+		plot(tt,inc,typ="s",lwd=3)
+		abline(v=t1,lty=2)
+	}
+	
+	for(start in 2:(length(inc)-w-1)){
+		# define the 'slice':
+		rng <- start:(start+w)
+		ts <- tt[rng]-tt[start-1]
+		incs <- inc[rng] - inc[start]
+		# linear regression:
+		m <- lm(incs~ts+0)
+		K[start] <- m$coefficients
+		if(doplot){
+			yy = K[start] * (tt-tt[start]) + inc[start]
+			lines(tt[rng],yy[rng],col="red",typ="o")
+			text(x=tt[start],y=yy[start],labels = round(K[start],2),pos = 1,col="black",cex = 0.9)
+		}
+	}
+	# Retrieve slopes that are larger than threshold
+	idx <- which(K>thres.rate)
+	d <- diff(idx)
+	# Only the first 2 consecutive slopes
+	# above the threshold qualify:
+	idx2 <- min(which(d==1))
+	TSTART <- idx[idx2]
+	
+	# If start is when incidence=0
+	# then move forward until it's >0
+	if(inc[TSTART]==0){
+		idx.nozero <- min(which(inc[(TSTART+1):length(inc)]>0))
+		TSTART <- TSTART + idx.nozero
+	}
+	
+	if(doplot) abline(v=TSTART,lwd=6,lty=3,col="red")
+	
+	return(TSTART)
+}
+
+
+# set.seed(12345)
+# inc1 <- rpois(n = 30,lambda = 1.3) 
+# t1 <- length(inc1)
+# t2 <- 1:20
+# inc2 <- rpois(n = length(t2), lambda = 1.1*t2)
+# inc <- c(inc1,inc2)
+# qq = find.epi.start(inc = inc, w = 4,thres.rate = 0.30,doplot = TRUE )
+# inc[qq]
+# is.na(qq)
+
 read.incidence <- function(filename, # RData file
 						   objname, # object storing incidence
 						   type, # simulated or real
+						   find.epi.start.window = NULL,
+						   find.epi.start.thresrate = NULL,
 						   truncate.date = NULL,
 						   mc.choose = 1
 ){
@@ -9,18 +72,20 @@ read.incidence <- function(filename, # RData file
 	tmp <- get(objname)
 	if(type=="simulated") tmp <- subset(get(objname),mc==mc.choose)
 	
+	# find the start of the significant growth of the epidemic
+	# (ignores the fizzles at the start)
+	if(!is.null(find.epi.start.window)){
+		tstart <- find.epi.start(inc = tmp$inc,
+								 w = find.epi.start.window,
+								 thres.rate = find.epi.start.thresrate,
+								 doplot = F)
+		if(is.na(tstart)) stop("Cannot find start of epidemic growth")
+		tmp <- subset(tmp, tb>=tstart)
+		tmp$tb <- tmp$tb - tstart+1
+	}
 	dat.full <- data.frame(t=tmp$tb, inc=tmp$inc)
 	dat <- dat.full
 	# Truncate
 	if(!is.null(truncate.date)) dat <- dat.full[1:truncate.date,]	
-	return(dat)
+	return(list(dat=dat, dat.full=dat.full))
 }
-	
-# 	# Read incidence
-# 	load(paste0(data.dir,"SEmInR_sim.Rdata"))
-# mc.choose <- 4   # choose the iteration
-# tmp <- subset(inc.tb,mc==mc.choose)
-# dat.full <- data.frame(t=tmp$tb, inc=tmp$inc)
-# 
-# # Truncate
-# dat <- dat.full[1:9,]
