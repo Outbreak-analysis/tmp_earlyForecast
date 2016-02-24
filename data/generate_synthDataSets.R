@@ -43,7 +43,7 @@ wrap.sim <- function(prm,prmfxd) {
 prmfxd <- list(horizon.years = 1.3,
 			   pop.size = 1E4,
 			   I.init = 2,
-			   n.MC = 100,
+			   n.MC = 1000,
 			   remove.fizzles = TRUE)
 
 # Define the various model parameters (data sets):
@@ -73,6 +73,7 @@ prm[[4]] <- list(DOL.days = 7,
 				 nE = 3,
 				 nI = 3)
 
+t1 <- as.numeric(Sys.time())
 # Run all data sets 
 ncpus <- detectCores()
 sfInit(parallel = TRUE, cpu = ncpus)
@@ -93,6 +94,8 @@ for(i in 1:length(prm)){
 	plot(g)
 }
 
+t2 <- as.numeric(Sys.time())
+message(paste("Completed in",round((t2-t1)/60,2),"minutes"))
 
 
 
