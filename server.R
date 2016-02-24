@@ -1,4 +1,5 @@
 library(shiny)
+source("EstimationR.R")
 
 source("read-data.R")
 source("forecast_early_short.R")
@@ -25,17 +26,31 @@ shinyServer(function(input, output) {
 			
 			# Load data:
 			if(data.type=="synthetic"){
-				dat <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
-									  objname = "inc.tb",
-									  type = "simulated",
-									  truncate.date = trunc,
-									  mc.choose = mc)
 				
-				dat.full <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
-										   objname = "inc.tb",
-										   type = "simulated",
-										   truncate.date = NULL,
-										   mc.choose = mc)
+				x <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
+									objname = "inc.tb",
+									type = "simulated",
+									find.epi.start.window = horiz.forecast + 3,
+									find.epi.start.thresrate = 0.5,
+									truncate.date = trunc,
+									mc.choose = mc)
+				
+				if(is.na(x)) return(NULL)
+				
+				dat <- x[["dat"]]
+				dat.full <- x[["dat.full"]]
+				
+# 				dat <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
+# 									  objname = "inc.tb",
+# 									  type = "simulated",
+# 									  truncate.date = trunc,
+# 									  mc.choose = mc)
+# 				
+# 				dat.full <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
+# 										   objname = "inc.tb",
+# 										   type = "simulated",
+# 										   truncate.date = NULL,
+# 										   mc.choose = mc)
 				
 				dat <- dat[first.date:nrow(dat),]
 				dat.full <- dat.full[first.date:nrow(dat.full),]
