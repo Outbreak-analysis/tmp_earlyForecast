@@ -1,5 +1,5 @@
 library(R0)
-library(EpiEstim)
+
 source("idea.R")
 
 plot.GI <- function(g, GI.dist){
@@ -253,10 +253,10 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 		if(is.null(cori.std.prior)) cori.std.prior <- 5
 		
 		R <- EstimateR(I = dat$inc,
-					   T.Start = (N-cori.window+1),
-					   T.End = N,
+					   T.Start = (N-cori.window+1),  # <-- Estimate R at the end of the data set (bc forecast)
+					   T.End = N,                    # <-- Estimate R at the end of the data set (bc forecast)
 					   method = model2,
-					   SI.Distr = GI.val,
+					   #SI.Distr = NULL,
 					   Mean.SI = GI.val[1],
 					   Std.SI = GI.val[2],
 					   Mean.Prior = cori.mean.prior,
