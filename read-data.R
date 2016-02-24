@@ -39,7 +39,7 @@ find.epi.start <- function(inc,w, thres.rate, doplot = FALSE) {
 	
 	# If start is when incidence=0
 	# then move forward until it's >0
-	if(inc[TSTART]==0){
+	if(inc[TSTART]==0 & !is.na(TSTART)){
 		idx.nozero <- min(which(inc[(TSTART+1):length(inc)]>0))
 		TSTART <- TSTART + idx.nozero
 	}
@@ -79,7 +79,10 @@ read.incidence <- function(filename, # RData file
 								 w = find.epi.start.window,
 								 thres.rate = find.epi.start.thresrate,
 								 doplot = F)
-		if(is.na(tstart)) stop("Cannot find start of epidemic growth")
+		if(is.na(tstart)) {
+			warning(paste("Cannot find start of epidemic growth",filename,"MC:",mc.choose))
+			return(NA)
+		}
 		tmp <- subset(tmp, tb>=tstart)
 		tmp$tb <- tmp$tb - tstart+1
 	}

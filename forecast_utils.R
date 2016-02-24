@@ -14,7 +14,7 @@ compare.fcast.early.2 <- function(fcast, dolog){
 	
 	obs.dat <- fcast[[1]]$obs.dat
 	tgt.dat <- fcast[[1]]$target.dat
-
+	
 	ymax <- 0
 	for (i in 1:length(fcast)) 
 		ymax <- max(ymax, fcast[[i]]$inc.f.hi)
@@ -209,22 +209,32 @@ get.model.prm <- function(dat,
 }
 
 
-fcast.wrap <- function(mc,datafilename,trunc,horiz.forecast,
-					   GI.mean,GI.stdv,
-					   GI.dist="gamma",
-					   cori.window=3,
-					   do.plot=FALSE){
+
+
+
+
+fcast.wrap <- function(mc, datafilename, 
+					   trunc,
+					   horiz.forecast,
+					   GI.mean, GI.stdv,
+					   GI.dist = "gamma",
+					   cori.window = 3,
+					   do.plot = FALSE){
+	
 	# Read incidence data:
-	dat <- read.incidence(filename = datafilename,
+	x <- read.incidence(filename = datafilename,
 						  objname = "inc.tb",
 						  type = "simulated",
+						  find.epi.start.window = horiz.forecast + 3,
+						  find.epi.start.thresrate = 0.5,
 						  truncate.date = trunc,
 						  mc.choose = mc)
-	dat.full <- read.incidence(filename = datafilename,
-							   objname = "inc.tb",
-							   type = "simulated",
-							   truncate.date = NULL,
-							   mc.choose = mc)
+	
+	if(is.na(x)) return(NULL)
+	
+	dat <- x[["dat"]]
+	dat.full <- x[["dat.full"]]
+	
 	# Set parameters for every models:
 	PRM <- get.model.prm(dat,
 						 dat.full,
