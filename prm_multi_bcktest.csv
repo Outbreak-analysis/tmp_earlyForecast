@@ -1,3 +1,4 @@
-trunc,20
+trunc,14
 horiz.forecast, 4
 GI.bias, 1.0
+n.MC.max, 3
