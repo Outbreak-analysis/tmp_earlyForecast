@@ -123,14 +123,14 @@ backtest.fcast <- function(RData.file,
 	# Summarize forecast performance across
 	# all synthetic data sets:
 	df.m <- ddply(df,c("model"),summarize, 
-				  b.m=mean(b), 
-				  s.m=mean(s),
-				  b.md=median(b), 
-				  s.md=median(s),
-				  b.lo=quantile(b,probs = 0.1),
-				  b.hi=quantile(b,probs = 0.9),
-				  s.lo=quantile(s,probs = 0.1),
-				  s.hi=quantile(s,probs = 0.9)
+				  b.m=mean(b, na.rm = TRUE), 
+				  s.m=mean(s, na.rm = TRUE),
+				  b.md=median(b, na.rm = TRUE), 
+				  s.md=median(s, na.rm = TRUE),
+				  b.lo=quantile(b,probs = 0.1, na.rm = TRUE),
+				  b.hi=quantile(b,probs = 0.9, na.rm = TRUE),
+				  s.lo=quantile(s,probs = 0.1, na.rm = TRUE),
+				  s.hi=quantile(s,probs = 0.9, na.rm = TRUE)
 	)
 	return(list(stat.errors = df.m, 
 				param.synthetic.sim = param.synthetic.sim,
