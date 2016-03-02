@@ -93,8 +93,12 @@ backtest.fcast <- function(RData.file,
 	if(!use.DC.version.of.EpiEstim) sfLibrary(EpiEstim)
 	
 	idx.apply <- unique(inc.tb$mc)
+	message(paste("Synthetic data contains ",length(idx.apply),"MC iterations"))
 	# Reduce backtesting to specified MC realizations:
-	if(n.MC.max>0) idx.apply <- idx.apply[1:n.MC.max]
+	if(n.MC.max>0) {
+		idx.apply <- idx.apply[1:n.MC.max]
+		message(paste("but only",length(idx.apply),"are used."))
+	}
 	
 	### Parallel execution:
 	sfExportAll()
