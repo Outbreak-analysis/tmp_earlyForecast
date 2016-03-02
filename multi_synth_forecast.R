@@ -239,6 +239,8 @@ dev.off()
 
 plot.backtest.all(x)
 
+save.image("backtest.RData")
+
 # ==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 t2 <- as.numeric(Sys.time())
 message(paste("Finished in",round((t2-t1)/60,2),"min"))
