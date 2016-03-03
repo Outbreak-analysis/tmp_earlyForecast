@@ -1,0 +1,1 @@
+scp champrd@ms.mcmaster.ca:~/GitHub/tmp_earlyForecast/*.$1 ./
