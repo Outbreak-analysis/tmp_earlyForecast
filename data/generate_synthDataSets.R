@@ -8,6 +8,8 @@ library(parallel)
 library(ggplot2);theme_set(theme_bw())
 source("SEmInR_Gillespie_FCT.R")
 
+n.MC <- commandArgs(trailingOnly = TRUE)
+
 wrap.sim <- function(prm,prmfxd) {
 	
 	# unpack fixed parameters:
@@ -41,7 +43,7 @@ wrap.sim <- function(prm,prmfxd) {
 prmfxd <- list(horizon.years = 1.3,
 			   pop.size = 1E4,
 			   I.init = 2,
-			   n.MC = 100,
+			   n.MC = n.MC,
 			   remove.fizzles = TRUE)
 
 # Define the various model parameters (data sets):
@@ -88,7 +90,7 @@ for(i in 1:length(prm)){
 	tmp$title2 <- i
 	df <- rbind(df, tmp)
 }
-pdf("plot_data.pdf",width=20,height = 15)
+pdf("plot_data.pdf",width=22,height = 15)
 g <- ggplot(df) + geom_step(aes(x=tb,y=inc,colour=factor(mc)),size=1)
 g <- g + facet_wrap(~title) + scale_y_log10()
 plot(g)
