@@ -49,29 +49,24 @@ prmfxd <- list(horizon.years = 1.3,
 # Define the various model parameters (data sets):
 prm <- list()
 
-prm[[1]] <- list(DOL.days = 2,
-				 DOI.days = 2,
-				 R0 = 3.5,
-				 nE = 3,
-				 nI = 3)
 
-prm[[2]] <- list(DOL.days = 7,
-				 DOI.days = 5,
-				 R0 = 3.5,
-				 nE = 3,
-				 nI = 3)
+Dvec <- c(2, 4, 8)
+R0vec <- c(1.5, 3, 6, 12)
+nI <- nE <- 5
 
-prm[[3]] <- list(DOL.days = 2,
-				 DOI.days = 2,
-				 R0 = 1.6,
-				 nE = 3,
-				 nI = 3)
+cnt <- 1
+for(d in Dvec){
+	for(r in R0vec){
+		prm[[cnt]] <- list(DOL.days = d,
+						 DOI.days = d,
+						 R0 = r,
+						 nE = nE,
+						 nI = nI)
+		cnt <- cnt + 1
+	}
+}
 
-prm[[4]] <- list(DOL.days = 7,
-				 DOI.days = 5,
-				 R0 = 1.6,
-				 nE = 3,
-				 nI = 3)
+
 
 t1 <- as.numeric(Sys.time())
 # Run all data sets 
