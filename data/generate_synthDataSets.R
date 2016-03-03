@@ -8,8 +8,6 @@ library(parallel)
 library(ggplot2);theme_set(theme_bw())
 source("SEmInR_Gillespie_FCT.R")
 
-pdf.options(width=12)
-
 wrap.sim <- function(prm,prmfxd) {
 	
 	# unpack fixed parameters:
@@ -66,7 +64,7 @@ for(d in Dvec){
 	}
 }
 
-message(paste("Simulating",length(prm),"x",prmfxd[["n.MC"]],"parameter sets..."))
+message(paste("   ===> Simulating",length(prm),"x",prmfxd[["n.MC"]],"parameter sets..."))
 
 t1 <- as.numeric(Sys.time())
 # Run all data sets 
@@ -78,15 +76,27 @@ SIM <- sfSapply(prm, wrap.sim, prmfxd=prmfxd, simplify = FALSE)
 sfStop()
 
 # Plots some simulations:
+df <- data.frame()
+mc.chosen <- 1:4
+
 for(i in 1:length(prm)){
-	mc.chosen <- c(1,2,3)
 	title <- paste(names(SIM[[i]][["param"]]),SIM[[i]][["param"]],sep="=",collapse = ";")
-	title <- paste("SET",i,":",title)
-	df <- subset(SIM[[i]][["inc"]], mc %in% mc.chosen)
-	g <- ggplot(df) + geom_step(aes(x=tb,y=inc,colour=factor(mc)),size=1)
-	g <- g + ggtitle(title)
-	plot(g)
+	title <- paste0("SET ",i,": ",title)
+	tmp <- SIM[[i]][["inc"]]
+	tmp <- subset(tmp, mc %in% mc.chosen)
+	tmp$title <-factor(title)
+	tmp$title2 <- i
+	df <- rbind(df, tmp)
 }
+pdf("plot_data.pdf",width=20,height = 15)
+g <- ggplot(df) + geom_step(aes(x=tb,y=inc,colour=factor(mc)),size=1)
+g <- g + facet_wrap(~title) + scale_y_log10()
+plot(g)
+dev.off()
+
+
+
+# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 t2 <- as.numeric(Sys.time())
 message(paste("Completed in",round((t2-t1)/60,2),"minutes"))
