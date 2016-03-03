@@ -43,7 +43,7 @@ wrap.sim <- function(prm,prmfxd) {
 prmfxd <- list(horizon.years = 1.3,
 			   pop.size = 1E4,
 			   I.init = 2,
-			   n.MC = 1000,
+			   n.MC = 100,
 			   remove.fizzles = TRUE)
 
 # Define the various model parameters (data sets):
@@ -66,12 +66,11 @@ for(d in Dvec){
 	}
 }
 
-
+message(paste("Simulating",length(prm),"x",prmfxd[["n.MC"]],"parameter sets..."))
 
 t1 <- as.numeric(Sys.time())
 # Run all data sets 
-ncpus <- detectCores()
-sfInit(parallel = TRUE, cpu = ncpus)
+sfInit(parallel = TRUE, cpu = detectCores())
 sfLibrary(adaptivetau)
 sfLibrary(plyr)
 sfExportAll()
