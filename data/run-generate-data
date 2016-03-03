@@ -1,2 +1,2 @@
-Rscript generate_synthDataSets.R 1000 &
+Rscript generate_synthDataSets.R 20 &
 

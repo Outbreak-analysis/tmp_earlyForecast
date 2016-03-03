@@ -8,7 +8,8 @@ library(parallel)
 library(ggplot2);theme_set(theme_bw())
 source("SEmInR_Gillespie_FCT.R")
 
-n.MC <- commandArgs(trailingOnly = TRUE)
+args <- commandArgs(trailingOnly = TRUE)
+n.MC <- as.numeric(args[1])
 
 wrap.sim <- function(prm,prmfxd) {
 	
@@ -66,7 +67,7 @@ for(d in Dvec){
 	}
 }
 
-message(paste("   ===> Simulating",length(prm),"x",prmfxd[["n.MC"]],"parameter sets..."))
+message(paste("   ===> Simulating",length(prm),"x",prmfxd[["n.MC"]],"parameter sets...\n"))
 
 t1 <- as.numeric(Sys.time())
 # Run all data sets 
@@ -76,6 +77,8 @@ sfLibrary(plyr)
 sfExportAll()
 SIM <- sfSapply(prm, wrap.sim, prmfxd=prmfxd, simplify = FALSE)
 sfStop()
+
+message("... done.")
 
 # Plots some simulations:
 df <- data.frame()
