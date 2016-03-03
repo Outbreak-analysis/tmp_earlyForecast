@@ -152,12 +152,12 @@ plot.backtest <- function(x) {
 	### PLOT THE RESULTS OF THE BACKTESTS
 	
 	df.m <- x[["stat.errors"]]
-# 	prm <- x[["param.synthetic.sim"]]
-# 	bias <- x[["bias"]]
-# 	n.mc <- x[["n.mc"]]
-# 	title <- paste(names(prm),prm,sep="=",collapse = " ; ")
-# 	title <- paste(title, "; GI bias =",bias,"; n.MC=",n.mc)
-# 	
+	# 	prm <- x[["param.synthetic.sim"]]
+	# 	bias <- x[["bias"]]
+	# 	n.mc <- x[["n.mc"]]
+	# 	title <- paste(names(prm),prm,sep="=",collapse = " ; ")
+	# 	title <- paste(title, "; GI bias =",bias,"; n.MC=",n.mc)
+	# 	
 	title <- make.title(x)
 	g <- ggplot(df.m)
 	g <- g + geom_segment(data = df.m, 
@@ -199,12 +199,14 @@ plot.backtest.all <- function(x) {
 		df[[i]]$dataset <- make.title(x[[i]])
 	}
 	D <- do.call("rbind",df)
+	mean.ok <- ( sum(is.infinite(D$b.m)) + sum(is.infinite(D$s.m)) ) ==0
 	# Plots:
 	pdf("plot_backtest_all.pdf",width=24,height=16)
 	g <- ggplot(D) 
-	g <- g + geom_point(aes(x=s.m,xend=s.m,y=b.m,yend=b.m,colour=model,shape=model),size=4)
-	g <- g + geom_segment(aes(x=s.lo,xend=s.hi,y=b.m,yend=b.m,colour=model))
-	g <- g + geom_segment(aes(x=s.m,xend=s.m,y=b.lo,yend=b.hi,colour=model))
+	if(mean.ok) g <- g + geom_point(aes(x=s.m,xend=s.m,y=b.m,yend=b.m,colour=model,shape=model),size=4)
+	g <- g + geom_point(aes(x=s.md,xend=s.md,y=b.md,yend=b.md,colour=model,shape=model),size=4)
+	g <- g + geom_segment(aes(x=s.lo,xend=s.hi,y=b.md,yend=b.md,colour=model))
+	g <- g + geom_segment(aes(x=s.md,xend=s.md,y=b.lo,yend=b.hi,colour=model))
 	g <- g + geom_hline(yintercept = 0, linetype=2, colour="black") 
 	g <- g + scale_x_log10()
 	g <- g + scale_colour_brewer(palette = "Set1")
@@ -232,6 +234,9 @@ pdf("plot_backtest.pdf",width=15,height = 15)
 for(i in 1:length(flist)){
 	message(paste("data sets:",i,"/",length(flist),flist[i]))
 	x[[i]] <- backtest.fcast(RData.file = flist[i])
+	
+}
+for(i in 1:length(flist)){
 	g[[i]] <- plot.backtest(x[[i]])
 	plot(g[[i]])
 }
