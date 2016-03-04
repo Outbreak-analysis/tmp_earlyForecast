@@ -242,7 +242,7 @@ idea.forecast <- function(data,
 # - - - - - -  - - - - - - - - - - - - - -  - - - 
 # - - - - - -  - - - - - - - - - - - - - -  - - - 
 
-do.test <- TRUE 
+do.test <- FALSE 
 
 if(do.test){
 	load("./data/SEmInR_sim.Rdata")
