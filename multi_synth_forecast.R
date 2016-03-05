@@ -123,36 +123,39 @@ backtest.fcast <- function(RData.file,
 					cori.window = 3,
 					do.plot = FALSE)
 	
-# 	res <- sfSapply(idx.apply, 
-# 					simplify = FALSE,
-# 					fcast.wrap, 
-# 					datafilename = RData.file,
-# 					trunc = trunc,
-# 					horiz.forecast = horiz.forecast ,
-# 					GI.mean = GI.mean,
-# 					GI.stdv = GI.stdv ,
-# 					GI.dist = "gamma" ,
-# 					cori.window = 3,
-# 					do.plot = FALSE)
+	# 	res <- sfSapply(idx.apply, 
+	# 					simplify = FALSE,
+	# 					fcast.wrap, 
+	# 					datafilename = RData.file,
+	# 					trunc = trunc,
+	# 					horiz.forecast = horiz.forecast ,
+	# 					GI.mean = GI.mean,
+	# 					GI.stdv = GI.stdv ,
+	# 					GI.dist = "gamma" ,
+	# 					cori.window = 3,
+	# 					do.plot = FALSE)
 	sfStop()
 	df <- do.call("rbind", res)
+	df.m <- NULL
 	
-	# Specify the (modified) measures to be plotted:
-	df$b <- sign(df$ME)*(abs(df$ME))^(1/4)
-	df$s <- df$MAE + 1*df$MQE
-	
-	# Summarize forecast performance across
-	# all synthetic data sets:
-	df.m <- ddply(df,c("model"),summarize, 
-				  b.m=mean(b, na.rm = TRUE), 
-				  s.m=mean(s, na.rm = TRUE),
-				  b.md=median(b, na.rm = TRUE), 
-				  s.md=median(s, na.rm = TRUE),
-				  b.lo=quantile(b,probs = 0.1, na.rm = TRUE),
-				  b.hi=quantile(b,probs = 0.9, na.rm = TRUE),
-				  s.lo=quantile(s,probs = 0.1, na.rm = TRUE),
-				  s.hi=quantile(s,probs = 0.9, na.rm = TRUE)
-	)
+	if(!is.null(df)){
+		# Specify the (modified) measures to be plotted:
+		df$b <- sign(df$ME)*(abs(df$ME))^(1/4)
+		df$s <- df$MAE + 1*df$MQE
+		
+		# Summarize forecast performance across
+		# all synthetic data sets:
+		df.m <- ddply(df,c("model"),summarize, 
+					  b.m=mean(b, na.rm = TRUE), 
+					  s.m=mean(s, na.rm = TRUE),
+					  b.md=median(b, na.rm = TRUE), 
+					  s.md=median(s, na.rm = TRUE),
+					  b.lo=quantile(b,probs = 0.1, na.rm = TRUE),
+					  b.hi=quantile(b,probs = 0.9, na.rm = TRUE),
+					  s.lo=quantile(s,probs = 0.1, na.rm = TRUE),
+					  s.hi=quantile(s,probs = 0.9, na.rm = TRUE)
+		)
+	}
 	return(list(stat.errors = df.m, 
 				param.synthetic.sim = param.synthetic.sim,
 				bias = bias,
@@ -216,8 +219,10 @@ plot.backtest.all <- function(x) {
 	# Merge all data frame into a single one:
 	df <- list()
 	for(i in 1:length(flist)){
-		df[[i]] <- x[[i]]$stat.errors
-		df[[i]]$dataset <- make.title(x[[i]])
+		if(!is.null(x[[i]]$stat.errors)){
+			df[[i]] <- x[[i]]$stat.errors
+			df[[i]]$dataset <- make.title(x[[i]])
+		}
 	}
 	D <- do.call("rbind",df)
 	mean.ok <- ( sum(is.infinite(D$b.m)) + sum(is.infinite(D$s.m)) ) ==0
@@ -256,15 +261,16 @@ for(i in 1:length(flist)){
 	message(paste("data sets:",i,"/",length(flist),flist[i]))
 	x[[i]] <- backtest.fcast(RData.file = flist[i])
 }
+save.image("backtest.RData")
+
 for(i in 1:length(flist)){
 	g[[i]] <- plot.backtest(x[[i]])
-	plot(g[[i]])
+	try(plot(g[[i]]),silent = TRUE)
 }
 dev.off()
 
-plot.backtest.all(x)
+try(plot.backtest.all(x), silent=TRUE)
 
-save.image("backtest.RData")
 
 # ==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 t2 <- as.numeric(Sys.time())
