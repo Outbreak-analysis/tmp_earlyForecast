@@ -93,19 +93,28 @@ backtest.fcast <- function(RData.file,
 	if(!use.DC.version.of.EpiEstim) sfLibrary(EpiEstim)
 	
 	idx.apply <- unique(inc.tb$mc)
-	message(paste("Synthetic data contains ",length(idx.apply),"MC iterations"))
+	message(paste("Synthetic data contains",length(idx.apply),"MC iterations"))
 	# Reduce backtesting to specified MC realizations:
 	if(n.MC.max>0) {
 		idx.apply <- idx.apply[1:n.MC.max]
 		message(paste("but only",length(idx.apply),"are used."))
+		inc.tb <- subset(inc.tb, mc %in% idx.apply)
 	}
 	
 	### Parallel execution:
+	
+	# Object 'all.sim' can be very large
+	# when many synthetic data were generated
+	# but this object is not used (for now).
+	# So, removed from memory before being exported
+	# because it can crash the memory
+	rm("all.sim")
+	
 	sfExportAll()
 	res <- sfSapply(idx.apply, 
 					simplify = FALSE,
-					fcast.wrap, 
-					datafilename = RData.file,
+					fcast.wrap2, 
+					inc.tb = inc.tb,
 					trunc = trunc,
 					horiz.forecast = horiz.forecast ,
 					GI.mean = GI.mean,
@@ -113,6 +122,18 @@ backtest.fcast <- function(RData.file,
 					GI.dist = "gamma" ,
 					cori.window = 3,
 					do.plot = FALSE)
+	
+# 	res <- sfSapply(idx.apply, 
+# 					simplify = FALSE,
+# 					fcast.wrap, 
+# 					datafilename = RData.file,
+# 					trunc = trunc,
+# 					horiz.forecast = horiz.forecast ,
+# 					GI.mean = GI.mean,
+# 					GI.stdv = GI.stdv ,
+# 					GI.dist = "gamma" ,
+# 					cori.window = 3,
+# 					do.plot = FALSE)
 	sfStop()
 	df <- do.call("rbind", res)
 	
@@ -234,7 +255,6 @@ pdf("plot_backtest.pdf",width=15,height = 15)
 for(i in 1:length(flist)){
 	message(paste("data sets:",i,"/",length(flist),flist[i]))
 	x[[i]] <- backtest.fcast(RData.file = flist[i])
-	
 }
 for(i in 1:length(flist)){
 	g[[i]] <- plot.backtest(x[[i]])

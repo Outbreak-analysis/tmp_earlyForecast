@@ -50,15 +50,6 @@ find.epi.start <- function(inc,w, thres.rate, doplot = FALSE) {
 }
 
 
-# set.seed(12345)
-# inc1 <- rpois(n = 30,lambda = 1.3) 
-# t1 <- length(inc1)
-# t2 <- 1:20
-# inc2 <- rpois(n = length(t2), lambda = 1.1*t2)
-# inc <- c(inc1,inc2)
-# qq = find.epi.start(inc = inc, w = 4,thres.rate = 0.30,doplot = TRUE )
-# inc[qq]
-# is.na(qq)
 
 read.incidence <- function(filename, # RData file
 						   objname, # object storing incidence
@@ -71,6 +62,38 @@ read.incidence <- function(filename, # RData file
 	load(filename)
 	tmp <- get(objname)
 	if(type=="simulated") tmp <- subset(get(objname),mc==mc.choose)
+	
+	# find the start of the significant growth of the epidemic
+	# (ignores the fizzles at the start)
+	if(!is.null(find.epi.start.window)){
+		tstart <- find.epi.start(inc = tmp$inc,
+								 w = find.epi.start.window,
+								 thres.rate = find.epi.start.thresrate,
+								 doplot = F)
+		if(is.na(tstart)) {
+			warning(paste("Cannot find start of epidemic growth",filename,"MC:",mc.choose))
+			return(NA)
+		}
+		tmp <- subset(tmp, tb>=tstart)
+		tmp$tb <- tmp$tb - tstart+1
+	}
+	dat.full <- data.frame(t=tmp$tb, inc=tmp$inc)
+	dat <- dat.full
+	# Truncate
+	if(!is.null(truncate.date)) dat <- dat.full[1:truncate.date,]	
+	return(list(dat=dat, dat.full=dat.full))
+}
+
+
+
+read.incidence2 <- function(inc.tb, 
+						   type, # simulated or real
+						   find.epi.start.window = NULL,
+						   find.epi.start.thresrate = NULL,
+						   truncate.date = NULL,
+						   mc.choose = 1
+){
+	if(type=="simulated") tmp <- subset(inc.tb,mc==mc.choose)
 	
 	# find the start of the significant growth of the epidemic
 	# (ignores the fizzles at the start)

@@ -223,12 +223,58 @@ fcast.wrap <- function(mc, datafilename,
 	
 	# Read incidence data:
 	x <- read.incidence(filename = datafilename,
-						  objname = "inc.tb",
-						  type = "simulated",
-						  find.epi.start.window = horiz.forecast + 3,
-						  find.epi.start.thresrate = 0.5,
-						  truncate.date = trunc,
-						  mc.choose = mc)
+						objname = "inc.tb",
+						type = "simulated",
+						find.epi.start.window = horiz.forecast + 3,
+						find.epi.start.thresrate = 0.5,
+						truncate.date = trunc,
+						mc.choose = mc)
+	
+	if(is.na(x)) return(NULL)
+	
+	dat <- x[["dat"]]
+	dat.full <- x[["dat.full"]]
+	
+	# Set parameters for every models:
+	PRM <- get.model.prm(dat,
+						 dat.full,
+						 horiz.forecast ,  
+						 GI.mean, 
+						 GI.stdv,
+						 GI.dist = GI.dist,
+						 cori.window = cori.window)
+	# Forecast:
+	fcast <- try(lapply(PRM,
+						fcast.inc.early.short,
+						do.plot=do.plot),
+				 silent = TRUE)
+	
+	# Merge all results in one data frame:	
+	df.tmp <- NULL
+	if(class(fcast)!="try-error"){
+		df.tmp <- dist.target(fcast)
+		df.tmp$mc <- mc
+	}
+	return(df.tmp)
+}
+
+
+
+fcast.wrap2 <- function(mc, inc.tb, 
+						trunc,
+						horiz.forecast,
+						GI.mean, GI.stdv,
+						GI.dist = "gamma",
+						cori.window = 3,
+						do.plot = FALSE){
+	
+	# Read incidence data:
+	x <- read.incidence2(inc.tb = inc.tb,
+						 type = "simulated",
+						 find.epi.start.window = horiz.forecast + 3,
+						 find.epi.start.thresrate = 0.5,
+						 truncate.date = trunc,
+						 mc.choose = mc)
 	
 	if(is.na(x)) return(NULL)
 	
