@@ -135,7 +135,20 @@ backtest.fcast <- function(RData.file,
 	# 					cori.window = 3,
 	# 					do.plot = FALSE)
 	sfStop()
+	
+	# Remove results that gave NULL:
+	nullres <- unlist(lapply(res,is.null))
+	for(i in 1:length(res)){
+		if(nullres[i]) res[[i]] <- NULL # <-- assigning NULL to a list element _removes_ it
+		warning(paste("---> WARNING: backtesting problems with",RData.file))
+	}
+	
 	df <- do.call("rbind", res)
+	
+	# If all NULL results, then something
+	# went wrong with this data set:
+	if(is.null(df)) return(NA)
+	
 	df.m <- NULL
 	
 	if(!is.null(df)){
@@ -219,7 +232,7 @@ plot.backtest.all <- function(x) {
 	# Merge all data frame into a single one:
 	df <- list()
 	for(i in 1:length(flist)){
-		if(!is.null(x[[i]]$stat.errors)){
+		if( is.list(x[[i]]) ){
 			df[[i]] <- x[[i]]$stat.errors
 			df[[i]]$dataset <- make.title(x[[i]])
 		}
@@ -254,18 +267,29 @@ plot.data(flist = flist, prm.bcktest.file = "prm_multi_bcktest.csv")
 
 
 # Backtest every data sets:
-g <- list()
 x <- list()
-pdf("plot_backtest.pdf",width=15,height = 15)
 for(i in 1:length(flist)){
 	message(paste("data sets:",i,"/",length(flist),flist[i]))
 	x[[i]] <- backtest.fcast(RData.file = flist[i])
 }
 save.image("backtest.RData")
 
+pdf("plot_backtest.pdf",width=15,height = 15)
+g <- list()
 for(i in 1:length(flist)){
-	g[[i]] <- plot.backtest(x[[i]])
-	try(plot(g[[i]]),silent = TRUE)
+	
+	msg.ok <- 	paste("plotting results from data sets:",i,"/",length(flist),flist[i],": OK")
+	msg.fail <-	paste("plotting results from data sets:",i,"/",length(flist),flist[i],": Failed!")
+	
+	if(is.na(x[[i]])) message(msg.fail)
+	
+	if(!is.na(x[[i]])){
+		g[[i]] <- plot.backtest(x[[i]])
+		try.plot <- try(plot(g[[i]]),silent = TRUE)
+		if(class(try.plot)!="try-error") message(msg.ok)
+		if(class(try.plot)=="try-error") message(msg.fail)
+	}
+	
 }
 dev.off()
 
