@@ -21,3 +21,5 @@ vignettes/*.pdf
 *.pdf
 
 *.RData
+
+*.swp
