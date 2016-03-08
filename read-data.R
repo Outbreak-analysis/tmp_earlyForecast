@@ -96,7 +96,7 @@ read.incidence2 <- function(inc.tb,
 	if(type=="simulated") tmp <- subset(inc.tb,mc==mc.choose)
 	
 	if(nrow(tmp)==0 | is.null(tmp)) {
-		warning(paste("Cannot find start of epidemic growth MC:",mc.choose))
+		warning(paste("No epidemic found for MC:",mc.choose))
 		return(NA)
 	}
 	
@@ -118,5 +118,64 @@ read.incidence2 <- function(inc.tb,
 	dat <- dat.full
 	# Truncate
 	if(!is.null(truncate.date)) dat <- dat.full[1:truncate.date,]	
-	return(list(dat=dat, dat.full=dat.full))
+	return(list(dat=dat, dat.full=dat.full, tstart=tstart))
 }
+
+
+read.incidence3 <- function(inc.tb, 
+							type, # simulated or real
+							find.epi.start.window = NULL,
+							find.epi.start.thresrate = NULL,
+							truncate.date = NULL,
+							truncate.generation = NULL,
+							mc.choose = 1
+){
+	if(type=="simulated") tmp <- subset(inc.tb,mc==mc.choose)
+	
+	if(nrow(tmp)==0 | is.null(tmp)) {
+		warning(paste("No epidemic found for MC:",mc.choose))
+		return(NA)
+	}
+	
+	# find the start of the significant growth of the epidemic
+	# (ignores the fizzles at the start)
+	if(!is.null(find.epi.start.window)){
+		tstart <- find.epi.start(inc = tmp$inc,
+								 w = find.epi.start.window,
+								 thres.rate = find.epi.start.thresrate,
+								 doplot = F)
+		if(is.na(tstart)) {
+			warning(paste("Cannot find start of epidemic growth MC:",mc.choose))
+			return(NA)
+		}
+		# Rebase starting time
+		# (everything before is ignored)
+		tmp <- subset(tmp, tb>=tstart)
+		tmp$tb <- tmp$tb - tstart+1
+	}
+	dat.full <- data.frame(t=tmp$tb, inc=tmp$inc)
+	dat <- dat.full
+	
+	### Truncate
+	
+	# If truncation date specified:
+	if(!is.null(truncate.date)) {
+		td <- truncate.date
+		dat <- subset(dat.full, t <= td)
+	}
+	# If truncation specified in terms of generations number:
+	if(!is.null(truncate.generation)) {
+		td <- round(truncate.generation*inc.tb$GI[1],0)
+		dat <- subset(dat.full, t <= td)
+	}
+	
+	return(list(dat = dat, 
+				dat.full = dat.full, 
+				# These dates are meant
+				# to be used on the _original_ data
+				# to visualize what was kept:
+				tstart = tstart,
+				ttrunc = tstart + td))
+}
+
+

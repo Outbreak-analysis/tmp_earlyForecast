@@ -10,7 +10,9 @@ source("SEmInR_Gillespie_FCT.R")
 
 args <- commandArgs(trailingOnly = TRUE)
 n.MC <- as.numeric(args[1])
-
+# --- debug
+# n.MC <- 3
+# - - - ---
 wrap.sim <- function(prm,prmfxd) {
 	
 	# unpack fixed parameters:
@@ -48,13 +50,11 @@ prmfxd <- list(horizon.years = 1.3,
 			   remove.fizzles = TRUE)
 
 # Define the various model parameters (data sets):
-prm <- list()
-
-
 Dvec <- c(2, 4, 8)
 R0vec <- c(1.5, 3, 6, 12)
 nI <- nE <- 5
 
+prm <- list()
 cnt <- 1
 for(d in Dvec){
 	for(r in R0vec){

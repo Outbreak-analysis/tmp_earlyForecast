@@ -209,10 +209,6 @@ get.model.prm <- function(dat,
 }
 
 
-
-
-
-
 fcast.wrap <- function(mc, datafilename, 
 					   trunc,
 					   horiz.forecast,
@@ -259,7 +255,6 @@ fcast.wrap <- function(mc, datafilename,
 }
 
 
-
 fcast.wrap2 <- function(mc, inc.tb, 
 						trunc,
 						horiz.forecast,
@@ -280,7 +275,8 @@ fcast.wrap2 <- function(mc, inc.tb,
 	
 	dat <- x[["dat"]]
 	dat.full <- x[["dat.full"]]
-	
+	t.epi.start <-  x[["tstart"]]
+
 	# Set parameters for every models:
 	PRM <- get.model.prm(dat,
 						 dat.full,
@@ -303,3 +299,61 @@ fcast.wrap2 <- function(mc, inc.tb,
 	}
 	return(df.tmp)
 }
+
+fcast.wrap3 <- function(mc, inc.tb, 
+						trunc.date,
+						trunc.generation,
+						horiz.forecast,
+						GI.mean, GI.stdv,
+						GI.dist = "gamma",
+						cori.window = 3,
+						do.plot = FALSE){
+	
+	# Read incidence data:
+	x <- read.incidence3(inc.tb = inc.tb,
+						 type = "simulated",
+						 find.epi.start.window = horiz.forecast + 3,
+						 find.epi.start.thresrate = 0.5,
+						 truncate.date = trunc.date,
+						 truncate.generation = trunc.generation,
+						 mc.choose = mc)
+# 	x <- read.incidence2(inc.tb = inc.tb,
+# 						 type = "simulated",
+# 						 find.epi.start.window = horiz.forecast + 3,
+# 						 find.epi.start.thresrate = 0.5,
+# 						 truncate.date = trunc.date,
+# 						 mc.choose = mc)
+	
+	if(is.na(x)) return(NULL)
+	
+	dat <- x[["dat"]]
+	dat.full <- x[["dat.full"]]
+	t.epi.start <- x[["tstart"]]
+	t.epi.trunc <- x[["ttrunc"]]
+	
+	# Set parameters for every models:
+	PRM <- get.model.prm(dat,
+						 dat.full,
+						 horiz.forecast ,  
+						 GI.mean, 
+						 GI.stdv,
+						 GI.dist = GI.dist,
+						 cori.window = cori.window)
+	# Forecast:
+	fcast <- try(lapply(PRM,
+						fcast.inc.early.short,
+						do.plot=do.plot),
+				 silent = TRUE)
+	
+	# Merge all results in one data frame:	
+	df.tmp <- NULL
+	if(class(fcast)!="try-error"){
+		df.tmp <- dist.target(fcast)
+		df.tmp$mc <- mc
+	}
+	return(list(df = df.tmp, 
+				t.epi.start = t.epi.start,
+				t.epi.trunc = t.epi.trunc))
+}
+
+

@@ -11,7 +11,9 @@ library(parallel)
 t1 <- as.numeric(Sys.time())
 
 # - - - - - - - - - - - - - - - - - - - - - - -
-use.DC.version.of.EpiEstim <- TRUE  # There is a problem in 'OverallInfectivity' function when data set is short
+# There is a problem in 'OverallInfectivity' 
+# function when data set is short.
+use.DC.version.of.EpiEstim <- TRUE  
 if(!use.DC.version.of.EpiEstim) library(EpiEstim)
 if(use.DC.version.of.EpiEstim) source("EstimationR.R")
 # - - - - - - - - - - - - - - - - - - - - - - -
@@ -21,32 +23,59 @@ source("forecast_early_short.R")
 source("forecast_utils.R")
 
 
-
-plot.data <- function(flist, prm.bcktest.file){
+plot.data <- function(flist, prm.bcktest.file, backtest){
 	
 	prm <- read.csv(prm.bcktest.file,header = FALSE)
-	trunc <- prm[prm[,1]=="trunc",2]
+
+	trunc.type <- as.character(prm[prm[,1]=="trunc.type",2])
+	trunc.date <- as.numeric(as.character(prm[prm[,1]=="trunc.date",2]))
+	trunc.gen <- as.numeric(as.character(prm[prm[,1]=="trunc.gen",2]))
+	if(trunc.type=="date") trunc <- trunc.date
+	if(trunc.type=="generation") trunc <- trunc.gen
+	
 	horiz.forecast <- prm[prm[,1]=="horiz.forecast",2]
 	
 	df <- list()
+	ts <- list()
 	for(i in 1:length(flist)){
 		load(flist[[i]])	
 		df[[i]] <- inc.tb
 		ds <- gsub(".RData","",flist[[i]])
 		ds <- gsub("./data/SEmInR_","",ds)
 		df[[i]]$dataset <- ds
+		if(!is.na(backtest[[i]])[1]) ts[[i]] <- backtest[[i]]$df.t.bounds
 	}
 	D <- do.call("rbind",df)
-	Davg <- ddply(D,c("tb","dataset"),summarize,inc.m=mean(inc))
+	D.ts <- do.call("rbind",ts)
+	D.ts$dataset <- gsub(".RData","",D.ts$datafile)
+	D.ts$dataset <- gsub("./data/SEmInR_","",D.ts$dataset )
+	
+	Davg <- ddply(D,c("tb","dataset"),summarize,
+				  inc.m = mean(inc),
+				  inc.lo = quantile(inc,probs = 0.05),
+				  inc.hi = quantile(inc,probs = 0.95))
+	
+	Davg1 <- Davg[Davg$inc.m > 0.1, ]
+	
+	D.ts.avg <- ddply(D.ts,"dataset",summarize,
+					  tstart.m = mean(tstart),
+					  ttrunc.m = mean(ttrunc)
+					  )
 	
 	pdf("plot_data.pdf",width=24,height = 16)
-	g <- ggplot(Davg) + geom_line(aes(x=tb,y=inc.m))
-	g <- g + facet_wrap(~dataset, scales = "free_y")
+	
+	g <- ggplot(Davg1,aes(x=tb,y=inc.m)) + geom_pointrange(aes(ymax=inc.hi,ymin=inc.lo),size=0.2) + geom_line()
+	g <- g + geom_vline(data = D.ts.avg,aes(xintercept=tstart.m), colour="red")
+	g <- g + geom_vline(data = D.ts.avg,aes(xintercept=ttrunc.m), colour="red")
+	g <- g + scale_y_log10()
+	g <- g + facet_wrap(~dataset, scales = "free")
 	plot(g)
-	Davg2 <- subset(Davg,tb <= trunc + horiz.forecast*2)
+	
+	Davg2 <- subset(Davg1,tb <= trunc + horiz.forecast*2)
 	g <- ggplot(Davg2) + geom_line(aes(x=tb,y=inc.m))
-	g <- g + facet_wrap(~dataset, scales = "free_y")+scale_y_log10()
+	g <- g + facet_wrap(~dataset, scales = "free")+scale_y_log10()
 	g <- g + geom_text(aes(x=tb,y=inc.m,label=round(inc.m,1)),size=3)
+	g <- g + geom_point(data = D.ts,aes(x=tstart,y=0.1),colour="red",shape=2)
 	plot(g)
 	dev.off()
 }
@@ -69,14 +98,21 @@ backtest.fcast <- function(RData.file,
 	
 	# Truncation date (synthetic beyond
 	# this time is supposed unknown)
-	trunc <- prm[prm[,1]=="trunc",2]
+	trunc.type <- as.character(prm[prm[,1]=="trunc.type",2])
+	trunc.date <- as.numeric(as.character(prm[prm[,1]=="trunc.date",2]))
+	trunc.gen <- as.numeric(as.character(prm[prm[,1]=="trunc.gen",2]))
+	
+	if(trunc.type=="date") trunc.gen <- NULL
+	if(trunc.type=="generation") trunc.date <- NULL
+	if(trunc.type!="generation" & trunc.type!="date") trunc.gen <- trunc.date <- NULL
+	
 	# Forecast horizon (time units after last know data)
-	horiz.forecast <- prm[prm[,1]=="horiz.forecast",2]
+	horiz.forecast <- as.numeric(as.character(prm[prm[,1]=="horiz.forecast",2]))
 	# Maximum of Monte Carlo realizations backtested:
-	n.MC.max <- prm[prm[,1]=="n.MC.max",2]
+	n.MC.max <- as.numeric(as.character(prm[prm[,1]=="n.MC.max",2]))
 	
 	# Generation interval
-	bias <- prm[prm[,1]=="GI.bias",2]
+	bias <- as.numeric(as.character(prm[prm[,1]=="GI.bias",2]))
 	GI.mean <- bias * (DOL.true+DOI.true/2)  # approx!
 	GI.stdv <- GI.mean/sqrt((mean(nE.true,nI.true))) # approx!
 	
@@ -86,9 +122,9 @@ backtest.fcast <- function(RData.file,
 	# specified metrics.
 	# All forecasts are merged in one data frame.
 	#
-	
 	n.cores <- detectCores()
-	sfInit(parallel = (n.cores>1), cpu = n.cores)
+	sfInit(parallel = (n.cores>1), 
+		   cpu = n.cores)
 	sfLibrary(R0)
 	if(!use.DC.version.of.EpiEstim) sfLibrary(EpiEstim)
 	
@@ -97,9 +133,13 @@ backtest.fcast <- function(RData.file,
 	# Reduce backtesting to specified MC realizations:
 	if(n.MC.max>0) {
 		idx.apply <- idx.apply[1:n.MC.max]
-		message(paste("but only",length(idx.apply),"are used."))
+		message(paste("but not more than",length(idx.apply),"are used."))
 		inc.tb <- subset(inc.tb, mc %in% idx.apply)
 	}
+	
+	inc.tb$datafile <- RData.file
+	# approximate generation interval length:
+	inc.tb$GI <- DOL.true + DOI.true/2
 	
 	### Parallel execution:
 	
@@ -111,30 +151,35 @@ backtest.fcast <- function(RData.file,
 	rm("all.sim")
 	
 	sfExportAll()
-	res <- sfSapply(idx.apply, 
+	res0 <- sfSapply(idx.apply, 
 					simplify = FALSE,
-					fcast.wrap2, 
+					fcast.wrap3, 
 					inc.tb = inc.tb,
-					trunc = trunc,
+					trunc.date = trunc.date,
+					trunc.generation = trunc.gen,
 					horiz.forecast = horiz.forecast ,
 					GI.mean = GI.mean,
 					GI.stdv = GI.stdv ,
 					GI.dist = "gamma" ,
 					cori.window = 3,
 					do.plot = FALSE)
-	
-	# 	res <- sfSapply(idx.apply, 
-	# 					simplify = FALSE,
-	# 					fcast.wrap, 
-	# 					datafilename = RData.file,
-	# 					trunc = trunc,
-	# 					horiz.forecast = horiz.forecast ,
-	# 					GI.mean = GI.mean,
-	# 					GI.stdv = GI.stdv ,
-	# 					GI.dist = "gamma" ,
-	# 					cori.window = 3,
-	# 					do.plot = FALSE)
 	sfStop()
+	
+	res <- list()
+	tstart <- list()
+	ttrunc <- list()
+	for(i in 1:length(res0)) {
+		res[[i]] <- res0[[i]]$df
+		tstart[[i]] <- res0[[i]]$t.epi.start
+		ttrunc[[i]] <- res0[[i]]$t.epi.trunc
+	}
+	
+	# If all df are NULL results, then something
+	# went wrong with this data set:
+	if(length(res)==0) {
+		warning(paste("---> WARNING: backtesting problems with",RData.file))
+		return(NA)
+	}
 	
 	# Remove results that gave NULL:
 	nullres <- unlist(lapply(res,is.null))
@@ -144,6 +189,10 @@ backtest.fcast <- function(RData.file,
 	}
 	
 	df <- do.call("rbind", res)
+	
+	df.t.bounds <- data.frame(tstart = unlist(tstart), 
+							  ttrunc = unlist(ttrunc),
+							datafile = RData.file)
 	
 	# If all NULL results, then something
 	# went wrong with this data set:
@@ -172,7 +221,8 @@ backtest.fcast <- function(RData.file,
 	return(list(stat.errors = df.m, 
 				param.synthetic.sim = param.synthetic.sim,
 				bias = bias,
-				n.mc = length(idx.apply))
+				n.mc = length(idx.apply),
+				df.t.bounds = df.t.bounds)
 	)
 }
 
@@ -225,7 +275,6 @@ plot.backtest <- function(x) {
 	return(g)
 }
 
-
 plot.backtest.all <- function(x) {
 	### PLOT BACKTESTS FROM ALL DATASETS (using facet_wrap)
 	
@@ -240,9 +289,9 @@ plot.backtest.all <- function(x) {
 	D <- do.call("rbind",df)
 	mean.ok <- ( sum(is.infinite(D$b.m)) + sum(is.infinite(D$s.m)) ) ==0
 	# Plots:
-	pdf("plot_backtest_all.pdf",width=24,height=16)
+	pdf("plot_backtest_all.pdf",width=28,height=20)
 	g <- ggplot(D) 
-	if(mean.ok) g <- g + geom_point(aes(x=s.m,xend=s.m,y=b.m,yend=b.m,colour=model,shape=model),size=4)
+	if(mean.ok) g <- g + geom_point(aes(x=s.m,xend=s.m,y=b.m,yend=b.m,colour=model,shape=model),size=1)
 	g <- g + geom_point(aes(x=s.md,xend=s.md,y=b.md,yend=b.md,colour=model,shape=model),size=4)
 	g <- g + geom_segment(aes(x=s.lo,xend=s.hi,y=b.md,yend=b.md,colour=model))
 	g <- g + geom_segment(aes(x=s.md,xend=s.md,y=b.lo,yend=b.hi,colour=model))
@@ -263,9 +312,6 @@ plot.backtest.all <- function(x) {
 cmd <- "ls ./data/*.RData"
 flist <- system(command = cmd, intern = TRUE)
 
-plot.data(flist = flist, prm.bcktest.file = "prm_multi_bcktest.csv")
-
-
 # Backtest every data sets:
 x <- list()
 for(i in 1:length(flist)){
@@ -275,9 +321,9 @@ for(i in 1:length(flist)){
 save.image("backtest.RData")
 
 pdf("plot_backtest.pdf",width=15,height = 15)
+
 g <- list()
 for(i in 1:length(flist)){
-	
 	msg.ok <- 	paste("plotting results from data sets:",i,"/",length(flist),flist[i],": OK")
 	msg.fail <-	paste("plotting results from data sets:",i,"/",length(flist),flist[i],": Failed!")
 	
@@ -285,16 +331,18 @@ for(i in 1:length(flist)){
 	
 	if(!is.na(x[[i]])){
 		g[[i]] <- plot.backtest(x[[i]])
-		try.plot <- try(plot(g[[i]]),silent = TRUE)
+		try.plot <- try(plot(g[[i]]), silent = TRUE)
 		if(class(try.plot)!="try-error") message(msg.ok)
 		if(class(try.plot)=="try-error") message(msg.fail)
 	}
-	
 }
 dev.off()
 
 try(plot.backtest.all(x), silent=TRUE)
 
+plot.data(flist = flist, 
+		  prm.bcktest.file = "prm_multi_bcktest.csv",
+		  backtest = x)
 
 # ==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 t2 <- as.numeric(Sys.time())
