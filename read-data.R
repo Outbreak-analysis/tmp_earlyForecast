@@ -95,6 +95,11 @@ read.incidence2 <- function(inc.tb,
 ){
 	if(type=="simulated") tmp <- subset(inc.tb,mc==mc.choose)
 	
+	if(nrow(tmp)==0 | is.null(tmp)) {
+		warning(paste("Cannot find start of epidemic growth MC:",mc.choose))
+		return(NA)
+	}
+	
 	# find the start of the significant growth of the epidemic
 	# (ignores the fizzles at the start)
 	if(!is.null(find.epi.start.window)){
@@ -103,7 +108,7 @@ read.incidence2 <- function(inc.tb,
 								 thres.rate = find.epi.start.thresrate,
 								 doplot = F)
 		if(is.na(tstart)) {
-			warning(paste("Cannot find start of epidemic growth",filename,"MC:",mc.choose))
+			warning(paste("Cannot find start of epidemic growth MC:",mc.choose))
 			return(NA)
 		}
 		tmp <- subset(tmp, tb>=tstart)
