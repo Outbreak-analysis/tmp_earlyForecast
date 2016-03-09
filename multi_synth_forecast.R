@@ -33,7 +33,7 @@ plot.data <- function(flist, prm.bcktest.file, backtest){
 	if(trunc.type=="date") trunc <- trunc.date
 	if(trunc.type=="generation") trunc <- trunc.gen
 	
-	horiz.forecast <- prm[prm[,1]=="horiz.forecast",2]
+	horiz.forecast <- as.numeric(as.character(prm[prm[,1]=="horiz.forecast",2]))
 	
 	df <- list()
 	ts <- list()
