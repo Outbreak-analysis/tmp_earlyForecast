@@ -221,7 +221,7 @@ backtest.fcast <- function(RData.file,
 	return(list(stat.errors = df.m, 
 				param.synthetic.sim = param.synthetic.sim,
 				bias = bias,
-				n.mc = length(idx.apply),
+				n.mc = length(unique(df$mc)),
 				df.t.bounds = df.t.bounds)
 	)
 }
