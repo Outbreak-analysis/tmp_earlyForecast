@@ -133,7 +133,9 @@ read.incidence3 <- function(inc.tb,
 	if(type=="simulated") tmp <- subset(inc.tb,mc==mc.choose)
 	
 	if(nrow(tmp)==0 | is.null(tmp)) {
-		warning(paste("No epidemic found for MC:",mc.choose))
+		msg <- paste("No epidemic found for MC:",mc.choose,". MC available:")
+		msg <- c(msg,paste(unique(inc.tb$mc),collapse = ";"))
+		warning(msg)
 		return(NA)
 	}
 	

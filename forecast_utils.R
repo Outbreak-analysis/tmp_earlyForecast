@@ -1,7 +1,16 @@
 
-dolog <- TRUE
+model.colour <- function(model.name){
+	col <- "grey"
+	if(model.name == "Cori") col <- "black"
+	if(model.name == "WalLip") col <- "blue"
+	if(model.name == "WhiPag") col <- "green"
+	if(model.name == "SeqBay") col <- "red"
+	if(model.name == "IDEA") col <- "orange"
+	return(col)
+}
 
-compare.fcast.early.2 <- function(fcast, dolog){
+
+compare.fcast.early.shiny <- function(fcast, dolog){
 	### Compare forecasts
 	
 	n.model <- length(fcast)
@@ -17,18 +26,14 @@ compare.fcast.early.2 <- function(fcast, dolog){
 	
 	ymax <- 0
 	for (i in 1:length(fcast)) 
-		ymax <- max(ymax, fcast[[i]]$inc.f.hi)
+		ymax <- max(ymax, fcast[[i]]$inc.f.hi, tgt.dat)
 	
-	if(dolog){
-		obs.dat <- log10(obs.dat)
-		tgt.dat <- log10(tgt.dat)
-		ymax <- log10(ymax)
-	}
-	
+	ymin <- ifelse(dolog,1,0)
 	plot(0, cex=0,
 		 xlim = c(1,length(fcast[[i]]$inc.f.m)),
-		 ylim = c(0,ymax),
+		 ylim = c(ymin,ymax),
 		 las = 1,
+		 log = ifelse(dolog,"y",""),
 		 xlab = "time",
 		 ylab = "")
 	grid(lty=2,col="lightgrey")
@@ -37,43 +42,39 @@ compare.fcast.early.2 <- function(fcast, dolog){
 	nudge <- nudge-mean(nudge)
 	
 	# Plot observed data:
-	points(x = 1:n.obs, y = obs.dat,typ="s")
-	points(x = 1:n.obs, y = obs.dat,typ="p", pch=16)
+	points(x = 1:n.obs, y = obs.dat, typ="s")
+	points(x = 1:n.obs, y = obs.dat, typ="p", pch=16)
 	# Plot future data if available:
 	if(!is.null(tgt.dat)){
 		points(x = frng, y = tgt.dat, 
 			   cex = 3,
-			   col="lightgrey", pch=15)
+			   col = "lightgrey",
+			   pch = 15)
 	}
-	
 	lwd.fcast <- 4
 	
 	for (i in 1:n.model) {
-		
 		f.m <- fcast[[i]]$inc.f.m[frng]
 		f.hi <- fcast[[i]]$inc.f.hi[frng]
 		f.lo <- fcast[[i]]$inc.f.lo[frng]
 		
-		if(dolog){
-			f.m <- log10(f.m)
-			f.hi <- log10(f.hi)
-			f.lo <- log10(f.lo)
-		}
-		
 		points(x = frng+nudge[i],
 			   y = f.m,
-			   col = i, 
-			   lwd = lwd.fcast, cex = 1.3)
-		segments(x0=frng+nudge[i], x1=frng+nudge[i],
-				 y0 = f.lo, y1 = f.hi, col=i, lwd=lwd.fcast/2)
+			   col = model.colour(names(fcast[i])), 
+			   lwd = lwd.fcast, 
+			   cex = 1.3)
+		segments(x0 = frng+nudge[i], 
+				 x1=frng+nudge[i],
+				 y0 = f.lo, y1 = f.hi, 
+				 col = model.colour(names(fcast[i])), 
+				 lwd = lwd.fcast/2)
 	}
-	legend(x="topleft",legend = names(fcast),col=c(1:n.model),lwd=lwd.fcast,pch = 1)
+	legend(x="topleft",
+		   legend = names(fcast),
+		   col = sapply(names(fcast),FUN = model.colour),
+		   lwd = lwd.fcast, 
+		   pch = 1)
 }
-
-
-# compare.fcast.early.2(fcast, dolog = T)
-
-
 
 compare.fcast.early <- function(fcast){
 	### Compare forecasts

@@ -275,6 +275,8 @@ plot.backtest <- function(x) {
 	return(g)
 }
 
+
+
 plot.backtest.all <- function(x) {
 	### PLOT BACKTESTS FROM ALL DATASETS (using facet_wrap)
 	
@@ -284,6 +286,8 @@ plot.backtest.all <- function(x) {
 		if( is.list(x[[i]]) ){
 			df[[i]] <- x[[i]]$stat.errors
 			df[[i]]$dataset <- make.title(x[[i]])
+			df[[i]]$R0 <- x[[i]]$param.synthetic.sim$R0
+			df[[i]]$DOLI <- x[[i]]$param.synthetic.sim$DOL.days+x[[i]]$param.synthetic.sim$DOI.days
 		}
 	}
 	D <- do.call("rbind",df)
@@ -292,14 +296,47 @@ plot.backtest.all <- function(x) {
 	pdf("plot_backtest_all.pdf",width=28,height=20)
 	g <- ggplot(D) 
 	if(mean.ok) g <- g + geom_point(aes(x=s.m,xend=s.m,y=b.m,yend=b.m,colour=model,shape=model),size=1)
-	g <- g + geom_point(aes(x=s.md,xend=s.md,y=b.md,yend=b.md,colour=model,shape=model),size=4)
+	g <- g + geom_point(aes(x=s.md,y=b.md,colour=model,shape=model),size=4)
 	g <- g + geom_segment(aes(x=s.lo,xend=s.hi,y=b.md,yend=b.md,colour=model))
 	g <- g + geom_segment(aes(x=s.md,xend=s.md,y=b.lo,yend=b.hi,colour=model))
 	g <- g + geom_hline(yintercept = 0, linetype=2, colour="black") 
 	g <- g + scale_x_log10()
 	g <- g + scale_colour_brewer(palette = "Set1")
-	g <- g + facet_wrap(~dataset)
-	plot(g)
+	
+	g.ds <- g + facet_wrap(~dataset)
+	plot(g.ds)
+	
+	g.R0.b <- ggplot(D) + geom_pointrange(aes(x=factor(R0),
+											  y=b.md,
+											  ymin=b.lo,
+											  ymax=b.hi,
+											  colour=model,shape=model),size=0.7,
+									 position =position_dodge(width = 0.3)) 
+	g.R0.b <- g.R0.b + facet_grid(~DOLI) + geom_hline(yintercept = 0)
+	plot(g.R0.b)
+	
+	g.R0.s <- ggplot(D) + geom_pointrange(aes(x=factor(R0),
+											  y=s.md,
+											  ymin=s.lo,
+											  ymax=s.hi,
+											  colour=model,shape=model),size=0.7,
+										  position =position_dodge(width = 0.3)) 
+	g.R0.s <- g.R0.s + facet_grid(~DOLI)
+	g.R0.s <- g.R0.s + scale_y_log10()
+	plot(g.R0.s)
+	
+	
+	g.DOLI.s <- ggplot(D) + geom_pointrange(aes(x=factor(DOLI),
+											  y=s.md,
+											  ymin=s.lo,
+											  ymax=s.hi,
+											  colour=model,shape=model),size=0.7,
+										  position =position_dodge(width = 0.3)) 
+	g.DOLI.s <- g.DOLI.s + facet_grid(~R0) 
+	g.DOLI.s <- g.DOLI.s + scale_y_log10()
+	plot(g.DOLI.s)
+	
+	
 	dev.off()
 }
 
