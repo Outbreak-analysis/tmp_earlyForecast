@@ -5,12 +5,19 @@ source("read-data.R")
 source("forecast_early_short.R")
 source("forecast_utils.R")
 
+full.filename <- function(filename,datatype){
+	if(datatype=="synthetic") filetype <- ".RData"
+	if(datatype=="real") filetype <- ".csv"
+	return(paste0("./data/SEmInR_",filename,filetype))
+}
+
 shinyServer(function(input, output) {
 	
 	output$forecast.plot <- renderPlot(
 		{
 			# Read all inputs from UI:
 			data.type <- input$data.type
+			data.file <- input$data.file
 			mc <- input$synth.dataset
 			
 			trunc <- input$trunc
@@ -27,36 +34,23 @@ shinyServer(function(input, output) {
 			# Load data:
 			if(data.type=="synthetic"){
 				
-				x <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
-									objname = "inc.tb",
-									type = "simulated",
-									find.epi.start.window = horiz.forecast + 3,
-									find.epi.start.thresrate = 0.5,
-									truncate.date = trunc,
-									mc.choose = mc)
+				load(full.filename(data.file,data.type))
+				x <- read.incidence3(inc.tb = inc.tb,
+									 type = "simulated",
+									 find.epi.start.window = horiz.forecast + 3,
+									 find.epi.start.thresrate = 0.5,
+									 truncate.date = trunc,
+									 truncate.generation = NULL,
+									 mc.choose = mc)
 				
 				if(is.na(x)) return(NULL)
 				
 				dat <- x[["dat"]]
 				dat.full <- x[["dat.full"]]
-				
-# 				dat <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
-# 									  objname = "inc.tb",
-# 									  type = "simulated",
-# 									  truncate.date = trunc,
-# 									  mc.choose = mc)
-# 				
-# 				dat.full <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
-# 										   objname = "inc.tb",
-# 										   type = "simulated",
-# 										   truncate.date = NULL,
-# 										   mc.choose = mc)
-				
 				dat <- dat[first.date:nrow(dat),]
 				dat.full <- dat.full[first.date:nrow(dat.full),]
 				
 			}
-			
 			if(data.type=="real"){
 				d0 <- read.csv(file = "./data/2009_Flu_Mexico.csv",header = F)
 				names(d0) <- c("t","inc")
@@ -79,7 +73,7 @@ shinyServer(function(input, output) {
 							fcast.inc.early.short,
 							do.plot= FALSE)
 			# plot forecast
-			compare.fcast.early.2(fcast, dolog = dolog)
+			compare.fcast.early.shiny(fcast, dolog = dolog)
 		},
 		height=700, 
 		width=700)

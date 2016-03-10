@@ -4,6 +4,23 @@ library(shiny)
 
 model.names <- c("Cori","WalLip","WhiPag","SeqBay","IDEA")
 
+
+get.file.list <- function(filetype){
+	cmd <- paste0("ls ./data/*.",filetype)
+	flist <- system(command = cmd, intern = TRUE)
+	return(flist)
+}
+
+trim.filename <- function(x){
+	y <- gsub("./data/","",x)
+	y <- gsub(".RData","",y)
+	y <- gsub(".csv","",y)
+	y <- gsub("SEmInR_","",y)
+	return(y)
+}
+
+
+
 # Define UI for application 
 shinyUI(fluidPage(
 	
@@ -18,6 +35,10 @@ shinyUI(fluidPage(
 					 			"Data type: ",
 					 			choices = c("synthetic","real"),
 					 			selected= "synthetic")
+					 ,
+					 selectInput("data.file",
+					 			"Data set: ",
+					 			choices = trim.filename(get.file.list("RData")) )
 					 ,
 					 numericInput("synth.dataset",
 					 			 "Synthetic data set number :",
