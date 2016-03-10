@@ -293,7 +293,8 @@ plot.backtest.all <- function(x) {
 	D <- do.call("rbind",df)
 	mean.ok <- ( sum(is.infinite(D$b.m)) + sum(is.infinite(D$s.m)) ) ==0
 	# Plots:
-	pdf("plot_backtest_all.pdf",width=28,height=20)
+	pdf(paste0("plot_backtest_all_B",x[[1]]$bias,".pdf"),
+		width=28, height=20)
 	g <- ggplot(D) 
 	if(mean.ok) g <- g + geom_point(aes(x=s.m,xend=s.m,y=b.m,yend=b.m,colour=model,shape=model),size=1)
 	g <- g + geom_point(aes(x=s.md,y=b.md,colour=model,shape=model),size=4)
@@ -302,40 +303,43 @@ plot.backtest.all <- function(x) {
 	g <- g + geom_hline(yintercept = 0, linetype=2, colour="black") 
 	g <- g + scale_x_log10()
 	g <- g + scale_colour_brewer(palette = "Set1")
-	
+	g <- g + theme(text = element_text(size = 28),
+				   strip.text.x = element_text(size = 10))
+	g <- g + xlab("MAQE") + ylab("Bias")
+					   
 	g.ds <- g + facet_wrap(~dataset)
 	plot(g.ds)
 	
-	g.R0.b <- ggplot(D) + geom_pointrange(aes(x=factor(R0),
+	g2 <- ggplot(D) + theme(text = element_text(size=28))
+	
+	g.R0.b <- g2 + geom_pointrange(aes(x=factor(R0),
 											  y=b.md,
 											  ymin=b.lo,
 											  ymax=b.hi,
-											  colour=model,shape=model),size=0.7,
+											  colour=model,shape=model),size=1,
 									 position =position_dodge(width = 0.3)) 
-	g.R0.b <- g.R0.b + facet_grid(~DOLI) + geom_hline(yintercept = 0)
+	g.R0.b <- g.R0.b + facet_grid(~DOLI) + geom_hline(yintercept = 0)+ ylab("Bias")
 	plot(g.R0.b)
 	
-	g.R0.s <- ggplot(D) + geom_pointrange(aes(x=factor(R0),
+	g.R0.s <- g2 + geom_pointrange(aes(x=factor(R0),
 											  y=s.md,
 											  ymin=s.lo,
 											  ymax=s.hi,
-											  colour=model,shape=model),size=0.7,
+											  colour=model,shape=model),size=1,
 										  position =position_dodge(width = 0.3)) 
 	g.R0.s <- g.R0.s + facet_grid(~DOLI)
-	g.R0.s <- g.R0.s + scale_y_log10()
+	g.R0.s <- g.R0.s + scale_y_log10()+ ylab("MAQE")
 	plot(g.R0.s)
 	
-	
-	g.DOLI.s <- ggplot(D) + geom_pointrange(aes(x=factor(DOLI),
+	g.DOLI.s <- g2 + geom_pointrange(aes(x=factor(DOLI),
 											  y=s.md,
 											  ymin=s.lo,
 											  ymax=s.hi,
-											  colour=model,shape=model),size=0.7,
+											  colour=model,shape=model),size=1,
 										  position =position_dodge(width = 0.3)) 
 	g.DOLI.s <- g.DOLI.s + facet_grid(~R0) 
-	g.DOLI.s <- g.DOLI.s + scale_y_log10()
+	g.DOLI.s <- g.DOLI.s + scale_y_log10()+ ylab("MAQE")
 	plot(g.DOLI.s)
-	
 	
 	dev.off()
 }
