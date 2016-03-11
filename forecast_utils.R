@@ -11,10 +11,9 @@ model.colour <- function(model.name){
 
 
 compare.fcast.early.shiny <- function(fcast, dolog){
-	### Compare forecasts
+	### Compare forecasts for Shiny GUI
 	
 	n.model <- length(fcast)
-	
 	tgt <- fcast[[1]]$target.dat
 	n.tgt <- length(tgt)
 	n <- length(fcast[[1]]$inc.f.m)
@@ -83,22 +82,18 @@ compare.fcast.early <- function(fcast){
 	n.tgt <- length(tgt)
 	n <- length(fcast[[1]]$inc.f.m)
 	frng <- (n-n.tgt+1):n
-	
 	cex <- 2
-	
 	nudge <- 0.015*c(0:length(fcast))
 	nudge <- nudge-mean(nudge)
 	dolog <- TRUE
 	if(dolog) tgt <- log(tgt)
 	
 	yrng <- range(unlist(fcast[[1:3]]))
-	
 	rng <- list()
 	for(i in 1:length(fcast)) 
 		rng[[i]]<- range(fcast[[i]][["inc.f.lo"]][frng],fcast[[i]][["inc.f.hi"]][frng])
 	yrng <- range(unlist(rng))
 	if(dolog) yrng<-log(yrng)
-	
 	
 	for(i in 1:length(fcast)){
 		
@@ -111,9 +106,7 @@ compare.fcast.early <- function(fcast){
 			f.lo <- log(f.lo)
 			f.hi <- log(f.hi)
 		}
-		
 		pch <- 14+i
-		
 		if(i==1){
 			plot(x=tgt+nudge[i],
 				 y=f.m,
@@ -138,7 +131,6 @@ compare.fcast.early <- function(fcast){
 dist.target <- function(fcast){
 	
 	M <- length(fcast) # Number of models
-	
 	ME <- vector(length = M) # Mean Error
 	MAE <- vector(length = M) # Mean Absobule Error
 	MQE <- vector(length = M)   # Mean Quantile Error
@@ -148,7 +140,6 @@ dist.target <- function(fcast){
 		tg <- x$target.dat
 		n.tg <- length(tg)
 		n.f <- length(x$inc.f.m)  
-		
 		# Mean and quantiles of forecasts
 		frng <- (n.f-n.tg+1):n.f
 		n <- length(frng) # number of actual forecasts
@@ -164,7 +155,7 @@ dist.target <- function(fcast){
 }
 
 
-get.model.prm <- function(dat,
+create.model.prm <- function(dat,
 						  dat.full,
 						  horiz.forecast ,  
 						  GI.mean,GI.stdv,
@@ -199,7 +190,6 @@ get.model.prm <- function(dat,
 							  GI.dist = "gamma",  # gamma, lognormal, weibull
 							  GI.val = c(GI.mean,GI.stdv))
 				,
-				
 				IDEA = list(model = "IDEA",
 							dat = dat,
 							dat.full = dat.full,
@@ -209,99 +199,7 @@ get.model.prm <- function(dat,
 	return(PRM)
 }
 
-
-fcast.wrap <- function(mc, datafilename, 
-					   trunc,
-					   horiz.forecast,
-					   GI.mean, GI.stdv,
-					   GI.dist = "gamma",
-					   cori.window = 3,
-					   do.plot = FALSE){
-	
-	# Read incidence data:
-	x <- read.incidence(filename = datafilename,
-						objname = "inc.tb",
-						type = "simulated",
-						find.epi.start.window = horiz.forecast + 3,
-						find.epi.start.thresrate = 0.5,
-						truncate.date = trunc,
-						mc.choose = mc)
-	
-	if(is.na(x)) return(NULL)
-	
-	dat <- x[["dat"]]
-	dat.full <- x[["dat.full"]]
-	
-	# Set parameters for every models:
-	PRM <- get.model.prm(dat,
-						 dat.full,
-						 horiz.forecast ,  
-						 GI.mean, 
-						 GI.stdv,
-						 GI.dist = GI.dist,
-						 cori.window = cori.window)
-	# Forecast:
-	fcast <- try(lapply(PRM,
-						fcast.inc.early.short,
-						do.plot=do.plot),
-				 silent = TRUE)
-	
-	# Merge all results in one data frame:	
-	df.tmp <- NULL
-	if(class(fcast)!="try-error"){
-		df.tmp <- dist.target(fcast)
-		df.tmp$mc <- mc
-	}
-	return(df.tmp)
-}
-
-
-fcast.wrap2 <- function(mc, inc.tb, 
-						trunc,
-						horiz.forecast,
-						GI.mean, GI.stdv,
-						GI.dist = "gamma",
-						cori.window = 3,
-						do.plot = FALSE){
-	
-	# Read incidence data:
-	x <- read.incidence2(inc.tb = inc.tb,
-						 type = "simulated",
-						 find.epi.start.window = horiz.forecast + 3,
-						 find.epi.start.thresrate = 0.5,
-						 truncate.date = trunc,
-						 mc.choose = mc)
-	
-	if(is.na(x)) return(NULL)
-	
-	dat <- x[["dat"]]
-	dat.full <- x[["dat.full"]]
-	t.epi.start <-  x[["tstart"]]
-
-	# Set parameters for every models:
-	PRM <- get.model.prm(dat,
-						 dat.full,
-						 horiz.forecast ,  
-						 GI.mean, 
-						 GI.stdv,
-						 GI.dist = GI.dist,
-						 cori.window = cori.window)
-	# Forecast:
-	fcast <- try(lapply(PRM,
-						fcast.inc.early.short,
-						do.plot=do.plot),
-				 silent = TRUE)
-	
-	# Merge all results in one data frame:	
-	df.tmp <- NULL
-	if(class(fcast)!="try-error"){
-		df.tmp <- dist.target(fcast)
-		df.tmp$mc <- mc
-	}
-	return(df.tmp)
-}
-
-fcast.wrap3 <- function(mc, inc.tb, 
+fcast.wrap <- function(mc, inc.tb, 
 						trunc.date,
 						trunc.generation,
 						horiz.forecast,
@@ -309,22 +207,17 @@ fcast.wrap3 <- function(mc, inc.tb,
 						GI.dist = "gamma",
 						cori.window = 3,
 						do.plot = FALSE){
+	### FORECASTING FUNCTION:
+	### CALLS EVERY MODELS
 	
 	# Read incidence data:
-	x <- read.incidence3(inc.tb = inc.tb,
+	x <- read.incidence.obj(inc.tb = inc.tb,
 						 type = "simulated",
 						 find.epi.start.window = horiz.forecast + 3,
 						 find.epi.start.thresrate = 0.5,
 						 truncate.date = trunc.date,
 						 truncate.generation = trunc.generation,
 						 mc.choose = mc)
-# 	x <- read.incidence2(inc.tb = inc.tb,
-# 						 type = "simulated",
-# 						 find.epi.start.window = horiz.forecast + 3,
-# 						 find.epi.start.thresrate = 0.5,
-# 						 truncate.date = trunc.date,
-# 						 mc.choose = mc)
-	
 	if(is.na(x)) return(NULL)
 	
 	dat <- x[["dat"]]
@@ -333,7 +226,7 @@ fcast.wrap3 <- function(mc, inc.tb,
 	t.epi.trunc <- x[["ttrunc"]]
 	
 	# Set parameters for every models:
-	PRM <- get.model.prm(dat,
+	PRM <- create.model.prm(dat,
 						 dat.full,
 						 horiz.forecast ,  
 						 GI.mean, 

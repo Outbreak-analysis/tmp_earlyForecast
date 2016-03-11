@@ -26,13 +26,13 @@ trunc <- 19
 horiz.forecast <- 7
 
 # Load pre-simulated synthetic data:
-dat <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
+dat <- read.incidence.file(filename = "./data/SEmInR_sim.Rdata",
 					  objname = "inc.tb",
 					  type = "simulated",
 					  truncate.date = trunc,
 					  mc.choose = mc)
 
-dat.full <- read.incidence(filename = "./data/SEmInR_sim.Rdata",
+dat.full <- read.incidence.file(filename = "./data/SEmInR_sim.Rdata",
 						   objname = "inc.tb",
 						   type = "simulated",
 						   truncate.date = NULL,
@@ -46,7 +46,7 @@ GI.stdv<- 1
 # Models are:
 # WalLip  WhiPag  SeqBay 
 # CoriParam CoriNonParam CoriUncertain
-PRM <- get.model.prm(dat,
+PRM <- create.model.prm(dat,
 					 dat.full,
 					 horiz.forecast ,  
 					 GI.mean,GI.stdv,

@@ -35,7 +35,7 @@ shinyServer(function(input, output) {
 			if(data.type=="synthetic"){
 				
 				load(full.filename(data.file,data.type))
-				x <- read.incidence3(inc.tb = inc.tb,
+				x <- read.incidence.obj(inc.tb = inc.tb,
 									 type = "simulated",
 									 find.epi.start.window = horiz.forecast + 3,
 									 find.epi.start.thresrate = 0.5,
@@ -59,7 +59,7 @@ shinyServer(function(input, output) {
 			}
 			# Set-up model parameters
 			# (wether used or not)
-			PRM <- get.model.prm(dat,
+			PRM <- create.model.prm(dat,
 								 dat.full,
 								 horiz.forecast ,  
 								 GI.mean,GI.stdv,

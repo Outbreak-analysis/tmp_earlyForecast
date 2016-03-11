@@ -28,10 +28,8 @@ plot.exp.phase <- function(dat){
 		 main=paste0("Check exp phase: R2=",round(r2,3)))
 	text(x = tt,y=loginc, labels = dat$inc, pos = 3)
 	abline(a = m$coefficients[1], b=m$coefficients[2],lty=2)
-	
 	if( r2<0.5 || r2 > 0.91) 
 		warning("Exponential phase either not satisfied, or too good (reaching peak incidence?)")
-	
 }
 
 plot.fcast <- function(model,
@@ -57,23 +55,19 @@ plot.fcast <- function(model,
 		inc <- log(inc)
 		ylab <- "LOG incidence"
 	}
-	
 	title <- paste(model,"forecast time series\n",Restim)
-	
 	yrng <- c(0,max(inc.f.hi))
 	if(!is.null(dat.full)) {
 		inc.full <- dat.full$inc[f.rng]
 		if(log) inc.full <- log(dat.full$inc[f.rng])
 		yrng <- c(0,max(inc.f.hi,inc.full))
 	}
-	
 	plot(x= c(tt,(length(tt)+1):nf),
 		 y=inc.f.m,
 		 cex=2, lwd=2,
 		 main = title,
 		 xlab="time", ylab=ylab,
 		 ylim=yrng)
-	
 	polygon(x=c(f.rng,rev(f.rng)),
 			y = c(inc.f.lo[f.rng],rev(inc.f.hi[f.rng])),
 			border = NA,
@@ -102,7 +96,6 @@ plot.fcast.vs.actual <- function(dat,
 								 inc.f.lo,
 								 inc.f.hi,
 								 log=FALSE){
-	
 	tt <-dat$t 
 	nf <- length(inc.f.m)
 	ntt <- length(tt)
@@ -118,7 +111,6 @@ plot.fcast.vs.actual <- function(dat,
 		inc.full <- log(inc.full)
 		title <- "LOG Incidence Forecast vs Actual"
 	}
-	
 	plot(x=inc.full,
 		 y=inc.f.m[f.rng],
 		 xlab="Actual incidence", 
@@ -126,7 +118,6 @@ plot.fcast.vs.actual <- function(dat,
 		 main = title,
 		 ylim=range(inc.f.lo[f.rng],inc.f.hi[f.rng],inc.full),
 		 cex=2,lwd=3)
-	
 	segments(x0=inc.full, x1=inc.full,
 			 y0=inc.f.lo[f.rng], y1=inc.f.hi[f.rng],
 			 lwd=3)
@@ -175,7 +166,6 @@ plot.all <- function(model,
 
 translate.model <- function(x){
 	res <- NA
-	
 	if(x=="WalLip") res <- "EG"
 	if(x=="WhiPag") res <- "ML"
 	if(x=="SeqBay") res <- "SB"
@@ -193,7 +183,7 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 	### - EARLY IN THE OUTBREAK (MUST BE EXPONENTIAL PHASE)
 	### - FORCAST FOR A SHORT HORIZON ONLY
 	
-	# Unpack parameters depending on model 
+	# Unpack parameters depending on model:
 	model <- prms[["model"]]
 	
 	pname <- c("dat","dat.full", "horiz.forecast",
@@ -205,8 +195,6 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 	
 	if(grepl("Cori",model)) pname <- c(pname,pname.cori)
 	for(p in pname) assign(x=p,value=prms[[p]])
-	
-	# message(paste("Forecasting with model",model))
 	
 	#  ==== Estimate R ====
 	
@@ -220,7 +208,6 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 							  truncate = GI.truncate,
 							  step = 1 )
 		# Estimate R
-		
 		inc <- dat$inc
 		if (model=="SeqBay"){
 			# There is a conceptual problem with this model
@@ -246,6 +233,7 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 		
 		# We just want to estimate R at the 
 		# last incidence point available:
+		# (this model provides a 'sliding' estimation for R)
 		N <- length(dat$inc)
 		
 		# deal with default values
@@ -295,7 +283,6 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 		R.hi <- R$R$`Quantile.0.975(R)`
 	}
 	
-	
 	# ==== Forecast ====
 	
 	g <- NULL
@@ -323,7 +310,6 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 		if(g[1,1]==0) g <- g[-1,] 
 		g <- g[,2]
 	}
-	
 	n.g <- length(g)
 	n.i <- length(inc.f.m)
 	
@@ -343,11 +329,9 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 			inc.f.hi <- c(inc.f.hi, R.hi*sum(g[1:n.g2]*inc.rev.hi[1:n.g2]))
 		}
 	}
-	
 	if(model %in% c("SeqBay")){
 		# Apply the formula I(t+h) = exp(h*gamma(R-1))*I(t)
 		# from Bettencourt 2008 PLoS ONE
-		
 		tmp.m <- exp( (1:horiz.forecast)*(R.m-1.0)/GI$mean )
 		tmp.lo <- exp( (1:horiz.forecast)*(R.lo-1.0)/GI$mean )
 		tmp.hi <- exp( (1:horiz.forecast)*(R.hi-1.0)/GI$mean )
@@ -369,8 +353,6 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 		inc.f.lo <- c(inc.f.m, x[["inc.fcast.lo"]])
 		R <- R.m <- R.hi <- R.lo <- x[["R0"]]
 	}
-	
-	
 	Restim <- paste0(round(R.m,2)," (",
 					 round(R.lo,2),";",
 					 round(R.hi,2),")")
@@ -383,7 +365,6 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 		plot.all(model, Restim,dat, dat.full, 
 				 inc.f.m, inc.f.lo, inc.f.hi)
 	}
-	
 	# Target data (if exists, for testing purpose)
 	target.dat <- NULL
 	if(!is.null(dat.full)) target.dat <- dat.full$inc[(length(dat$t)+1):length(inc.f.m)]

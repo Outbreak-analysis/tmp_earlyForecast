@@ -24,6 +24,8 @@ source("forecast_utils.R")
 
 
 plot.data <- function(flist, prm.bcktest.file, backtest){
+	### PLOT FULL DATA SETS 
+	### AS WELL AS THE WINDOWS OF DATA USED
 	
 	prm <- read.csv(prm.bcktest.file,header = FALSE)
 
@@ -153,7 +155,7 @@ backtest.fcast <- function(RData.file,
 	sfExportAll()
 	res0 <- sfSapply(idx.apply, 
 					simplify = FALSE,
-					fcast.wrap3, 
+					fcast.wrap, 
 					inc.tb = inc.tb,
 					trunc.date = trunc.date,
 					trunc.generation = trunc.gen,
@@ -292,11 +294,14 @@ plot.backtest.all <- function(x) {
 	}
 	D <- do.call("rbind",df)
 	mean.ok <- ( sum(is.infinite(D$b.m)) + sum(is.infinite(D$s.m)) ) ==0
-	# Plots:
+	
+	# --- Plots ---
 	pdf(paste0("plot_backtest_all_B",x[[1]]$bias,".pdf"),
 		width=28, height=20)
+	
 	g <- ggplot(D) 
-	if(mean.ok) g <- g + geom_point(aes(x=s.m,xend=s.m,y=b.m,yend=b.m,colour=model,shape=model),size=1)
+	if(mean.ok) g <- g + geom_point(aes(x=s.m,xend=s.m,y=b.m,yend=b.m,
+										colour=model,shape=model),size=1)
 	g <- g + geom_point(aes(x=s.md,y=b.md,colour=model,shape=model),size=4)
 	g <- g + geom_segment(aes(x=s.lo,xend=s.hi,y=b.md,yend=b.md,colour=model))
 	g <- g + geom_segment(aes(x=s.md,xend=s.md,y=b.lo,yend=b.hi,colour=model))
@@ -340,13 +345,13 @@ plot.backtest.all <- function(x) {
 	g.DOLI.s <- g.DOLI.s + facet_grid(~R0) 
 	g.DOLI.s <- g.DOLI.s + scale_y_log10()+ ylab("MAQE")
 	plot(g.DOLI.s)
-	
 	dev.off()
 }
 
 
-
+### - - - - - - - - - - - - - - -
 ### --- Run the backtesting ---
+### - - - - - - - - - - - - - - -
 
 
 # Read all data available:
@@ -365,8 +370,10 @@ pdf("plot_backtest.pdf",width=15,height = 15)
 
 g <- list()
 for(i in 1:length(flist)){
-	msg.ok <- 	paste("plotting results from data sets:",i,"/",length(flist),flist[i],": OK")
-	msg.fail <-	paste("plotting results from data sets:",i,"/",length(flist),flist[i],": Failed!")
+	msg.ok <- 	paste("plotting results from data sets:",i,"/",
+					 length(flist),flist[i],": OK")
+	msg.fail <-	paste("plotting results from data sets:",i,"/",
+					  length(flist),flist[i],": Failed!")
 	
 	if(is.na(x[[i]])) message(msg.fail)
 	
