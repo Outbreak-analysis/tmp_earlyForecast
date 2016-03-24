@@ -1,3 +1,8 @@
+library(plyr)
+
+# Assume sister folder contains database
+# and database utils scripts:
+source("../Datsid/read_db.R")
 
 find.epi.start <- function(inc,w, thres.rate, doplot = FALSE) {
 	
@@ -51,12 +56,12 @@ find.epi.start <- function(inc,w, thres.rate, doplot = FALSE) {
 
 
 read.incidence.file <- function(filename, # RData file
-						   objname, # object storing incidence
-						   type, # simulated or real
-						   find.epi.start.window = NULL,
-						   find.epi.start.thresrate = NULL,
-						   truncate.date = NULL,
-						   mc.choose = 1
+								objname, # object storing incidence
+								type, # simulated or real
+								find.epi.start.window = NULL,
+								find.epi.start.thresrate = NULL,
+								truncate.date = NULL,
+								mc.choose = 1
 ){
 	load(filename)
 	tmp <- get(objname)
@@ -85,12 +90,12 @@ read.incidence.file <- function(filename, # RData file
 }
 
 read.incidence.obj <- function(inc.tb, 
-							type, # simulated or real
-							find.epi.start.window = NULL,
-							find.epi.start.thresrate = NULL,
-							truncate.date = NULL,
-							truncate.generation = NULL,
-							mc.choose = 1
+							   type, # simulated or real
+							   find.epi.start.window = NULL,
+							   find.epi.start.thresrate = NULL,
+							   truncate.date = NULL,
+							   truncate.generation = NULL,
+							   mc.choose = 1
 ){
 	if(type=="simulated") tmp <- subset(inc.tb,mc==mc.choose)
 	
@@ -142,4 +147,116 @@ read.incidence.obj <- function(inc.tb,
 				ttrunc = tstart + td))
 }
 
+
+
+# datevec <- zz2$date
+# typevec <- zz2$mc
+
+conv.date.to.duration <- function(datevec, typevec){
+	df <- data.frame(date=datevec, type=typevec)	
+	df2 <- ddply(df,"type",summarize, m=min(date))
+	f <- function(i){return(as.numeric(df2[df2[,1]==i,2]))}
+	df$t <- as.numeric(df$date) - sapply(df$type, f) 
+	df$t
+	return(df$t)
+}
+
+convert.for.backtest <- function(x){
+	### Converts a query in a simple format
+	### used in backtesting codes.
+	stopifnot(unique(x$eventtype)=="incidence")
+	
+	dd <- as.Date(x$reportdate)
+	t <- conv.date.to.duration(datevec = dd, 
+							   typevec = x$synthetic)
+	return(data.frame(date = dd,
+					  tb   = as.numeric(t),
+					  inc  = as.numeric(x$count),
+					  mc   = as.numeric(x$synthetic),
+					  source = as.character(x$source))
+	)
+}
+
+read.database <- function(db.path,
+						  country = NULL,
+						  disease = NULL,
+						  synthetic = NULL,
+						  source.keys = NULL,
+						  eventtype = NULL,
+						  eventtype2 = NULL,
+						  social.struct = NULL) {
+	### Retrieve all fields of a given query
+	
+	# First (base) query:
+	x <- get.epi.ts(db.path,country,disease,synthetic)
+	
+	# Then, filter what is asked:
+	if(!is.null(source.keys))   x <- x[grepl(pattern = source.keys,x = x$source),]
+	if(!is.null(eventtype))     x <- x[x$eventtype %in% eventtype,]
+	if(!is.null(eventtype2))    x <- x[x$eventtype2 %in% eventtype2,]
+	if(!is.null(social.struct)) x <- x[x$socialstruct %in% social.struct,]
+	
+	return(x)
+}
+
+
+
+get.prm.value.from.source <- function(source.string,prm.name) {
+	### Retrieve the value of a parameter used to 
+	### generate synthetic data.
+	### For synthetic data, the 'source' field 
+	### has (should have) a string describing these
+	### values. 
+	### For example "blabla_XYZ_1.23;blabla" indicates
+	### the parameter named "XYZ" was "1.23"
+	### (the undescore and semi-colon is the expected separator)
+	
+	# find the position of the parameter name in the string:
+	pstart <- as.numeric(gregexpr(prm.name,source.string,fixed=TRUE))
+	# discard what's before:
+	x2 <- substring(text=source.string, first = pstart)
+	# Retrieve positions of all underscores:
+	uds <- gregexpr("_",x2,fixed=TRUE)[[1]]
+	# Retrieve positions of all semicolon:
+	sc <- gregexpr(";",x2,fixed=TRUE)[[1]]
+	# Retrieve the value between the next 2 underscores (following param name):
+	val <- as.numeric(substr(x2,start = uds[1]+1, stop= sc[1]-1))
+	return(val)
+}
+
+get.prm.names.from.source <- function(source.string){
+	uds <- as.numeric(gregexpr("_",source.string,fixed = T)[[1]])[-1]
+	sc <- as.numeric(gregexpr(";",source.string,fixed = T)[[1]])
+	prm.name <- substring(text = source.string, first = sc+1, last = uds-1)
+	# prm.name <- substr(x = source.string, start = sc+1, stop = uds-1)
+	return(prm.name)
+}
+
+# DEBUG - - - - 
+db.path <- "../Datsid/a.db"
+country <-  'synthetic'  #  'synthetic' 'LIBERIA'
+disease <-  'synthetic'  #'synthetic' NULL
+synthetic <- NULL
+source.keys <-  "BACKTEST_2" # "SET 2" NULL
+eventtype <- "incidence"  #c("incidence","deaths")
+eventtype2 <- NULL # "confirmed"
+social.struct <- NULL   #"HCW"
+
+zz <- read.database(db.path,
+					country,
+					disease,
+					synthetic,
+					source.keys,
+					eventtype,
+					eventtype2,
+					social.struct)
+
+zz2 <- convert.for.backtest(zz)
+
+yy <- get.prm.value.from.source(source.string = zz2$source,
+								prm.name = "nE")
+
+
+ss <- get.list.sources(db.path)
+# - - - - - - - 
 

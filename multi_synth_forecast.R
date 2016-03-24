@@ -228,6 +228,179 @@ backtest.fcast <- function(RData.file,
 	)
 }
 
+backtest.fcast.db <- function(db.path,
+							  country = NULL,
+							  disease = NULL,
+							  synthetic = NULL,
+							  source.keys = NULL,
+							  eventtype = NULL,
+							  eventtype2 = NULL,
+							  social.struct = NULL,
+							  save.to.file = TRUE) {
+	### BACKTEST FORECASTING MODELS 
+	### FROM PRE-SIMULATED SYNTHETIC DATA
+	### READING DATA FROM DATABASE
+	
+	# Load synthetic data:
+	dat0 <- read.database(db.path,
+						country,
+						disease,
+						synthetic,
+						source.keys,
+						eventtype,
+						eventtype2,
+						social.struct)
+	
+	inc.tb <- convert.for.backtest(dat0)
+	
+	prm.name <- get.prm.names.from.source(source.string = inc.tb$source)
+	
+	param.synthetic.sim <- vector()
+	for(i in 1:length(prm.name)){
+		param.synthetic.sim[i] <- get.prm.value.from.source(inc.tb$source, 
+															prm.name = prm.name[i])[1]
+	}
+	
+	nE.true  <- get.prm.value.from.source(inc.tb$source, prm.name = "nE")[1]
+	nI.true  <- get.prm.value.from.source(inc.tb$source, prm.name = "nI")[1]
+	DOL.true <- get.prm.value.from.source(inc.tb$source, prm.name = "DOL.days")[1]
+	DOI.true <- get.prm.value.from.source(inc.tb$source, prm.name = "DOI.days")[1]
+	
+	# Parameters for the backtesting:
+	prm <- read.csv("prm_multi_bcktest.csv",header = FALSE)
+	
+	# Truncation date (synthetic beyond
+	# this time is supposed unknown)
+	trunc.type <- as.character(prm[prm[,1]=="trunc.type",2])
+	trunc.date <- as.numeric(as.character(prm[prm[,1]=="trunc.date",2]))
+	trunc.gen <- as.numeric(as.character(prm[prm[,1]=="trunc.gen",2]))
+	
+	if(trunc.type=="date") trunc.gen <- NULL
+	if(trunc.type=="generation") trunc.date <- NULL
+	if(trunc.type!="generation" & trunc.type!="date") trunc.gen <- trunc.date <- NULL
+	
+	# Forecast horizon (time units after last know data)
+	horiz.forecast <- as.numeric(as.character(prm[prm[,1]=="horiz.forecast",2]))
+	# Maximum of Monte Carlo realizations backtested:
+	n.MC.max <- as.numeric(as.character(prm[prm[,1]=="n.MC.max",2]))
+	
+	# Generation interval
+	bias <- as.numeric(as.character(prm[prm[,1]=="GI.bias",2]))
+	GI.mean <- bias * (DOL.true+DOI.true/2)  # approx!
+	GI.stdv <- GI.mean/sqrt((mean(nE.true,nI.true))) # approx!
+	
+	# This loop performs the forecast 
+	# on every synthetic data set.
+	# Each forecast is evaluated with 
+	# specified metrics.
+	# All forecasts are merged in one data frame.
+	#
+	n.cores <- detectCores()
+	sfInit(parallel = (n.cores>1), 
+		   cpu = n.cores)
+	sfLibrary(R0)
+	if(!use.DC.version.of.EpiEstim) sfLibrary(EpiEstim)
+	
+	idx.apply <- unique(inc.tb$mc)
+	message(paste("Synthetic data contains",length(idx.apply),"MC iterations"))
+	# Reduce backtesting to specified MC realizations:
+	if(n.MC.max>0) {
+		idx.apply <- idx.apply[1:n.MC.max]
+		message(paste("but not more than",length(idx.apply),"are used."))
+		inc.tb <- subset(inc.tb, mc %in% idx.apply)
+	}
+	
+	inc.tb$datafile <- source.keys
+	
+	# approximate generation interval length:
+	inc.tb$GI <- DOL.true + DOI.true/2
+	
+	### Parallel execution:
+	
+	# Object 'all.sim' can be very large
+	# when many synthetic data were generated
+	# but this object is not used (for now).
+	# So, removed from memory before being exported
+	# because it can crash the memory
+	rm("all.sim")
+	
+	sfExportAll()
+	res0 <- sfSapply(idx.apply, 
+					 simplify = FALSE,
+					 fcast.wrap, 
+					 inc.tb = inc.tb,
+					 trunc.date = trunc.date,
+					 trunc.generation = trunc.gen,
+					 horiz.forecast = horiz.forecast ,
+					 GI.mean = GI.mean,
+					 GI.stdv = GI.stdv ,
+					 GI.dist = "gamma" ,
+					 cori.window = 3,
+					 do.plot = FALSE)
+	sfStop()
+	
+	res <- list()
+	tstart <- list()
+	ttrunc <- list()
+	for(i in 1:length(res0)) {
+		res[[i]] <- res0[[i]]$df
+		tstart[[i]] <- res0[[i]]$t.epi.start
+		ttrunc[[i]] <- res0[[i]]$t.epi.trunc
+	}
+	
+	# If all df are NULL results, then something
+	# went wrong with this data set:
+	if(length(res)==0) {
+		warning(paste("---> WARNING: backtesting problems with",source.keys))
+		return(NA)
+	}
+	
+	# Remove results that gave NULL:
+	nullres <- unlist(lapply(res,is.null))
+	for(i in 1:length(res)){
+		if(nullres[i]) res[[i]] <- NULL # <-- assigning NULL to a list element _removes_ it
+		warning(paste("---> WARNING: backtesting problems with",source.keys))
+	}
+	
+	df <- do.call("rbind", res)
+	
+	df.t.bounds <- data.frame(tstart = unlist(tstart), 
+							  ttrunc = unlist(ttrunc),
+							  datafile = source.keys)
+	
+	# If all NULL results, then something
+	# went wrong with this data set:
+	if(is.null(df)) return(NA)
+	
+	df.m <- NULL
+	
+	if(!is.null(df)){
+		# Specify the (modified) measures to be plotted:
+		df$b <- sign(df$ME)*(abs(df$ME))^(1/4)
+		df$s <- df$MAE + 1*df$MQE
+		
+		# Summarize forecast performance across
+		# all synthetic data sets:
+		df.m <- ddply(df,c("model"),summarize, 
+					  b.m=mean(b, na.rm = TRUE), 
+					  s.m=mean(s, na.rm = TRUE),
+					  b.md=median(b, na.rm = TRUE), 
+					  s.md=median(s, na.rm = TRUE),
+					  b.lo=quantile(b,probs = 0.1, na.rm = TRUE),
+					  b.hi=quantile(b,probs = 0.9, na.rm = TRUE),
+					  s.lo=quantile(s,probs = 0.1, na.rm = TRUE),
+					  s.hi=quantile(s,probs = 0.9, na.rm = TRUE)
+		)
+	}
+	return(list(stat.errors = df.m, 
+				param.synthetic.sim = param.synthetic.sim,
+				bias = bias,
+				n.mc = length(unique(df$mc)),
+				df.t.bounds = df.t.bounds)
+	)
+}
+
+
 make.title <- function(x) {
 	prm <- x[["param.synthetic.sim"]]
 	bias <- x[["bias"]]
@@ -353,27 +526,50 @@ plot.backtest.all <- function(x) {
 ### --- Run the backtesting ---
 ### - - - - - - - - - - - - - - -
 
+db.path <- "../Datsid/a.db"
+use.db <- TRUE
+bcktest <- get.list.sources(db.path = db.path)
+bcktest <- bcktest[grepl(pattern = "BACKTEST",x = bcktest)]
+
 
 # Read all data available:
 cmd <- "ls ./data/*.RData"
 flist <- system(command = cmd, intern = TRUE)
 
 # Backtest every data sets:
+
 x <- list()
-for(i in 1:length(flist)){
-	message(paste("data sets:",i,"/",length(flist),flist[i]))
-	x[[i]] <- backtest.fcast(RData.file = flist[i])
+
+if(use.db){
+	for(i in 1:length(bcktest)){
+		message(paste("data sets:",i,"/", length(bcktest), bcktest[i]))
+		x[[i]] <- backtest.fcast.db(db.path = db.path,
+									source.keys = bcktest[i],
+									eventtype = "incidence")
+	}
 }
+if(!use.db){
+	for(i in 1:length(flist)){
+		message(paste("data sets:",i,"/",length(flist),flist[i]))
+		x[[i]] <- backtest.fcast(RData.file = flist[i])
+	}
+}
+
+
 save.image("backtest.RData")
 
 pdf("plot_backtest.pdf",width=15,height = 15)
 
 g <- list()
-for(i in 1:length(flist)){
+
+if(use.db) V <- bcktest
+if(!use.db) V <- flist
+
+for(i in 1:length(V)){
 	msg.ok <- 	paste("plotting results from data sets:",i,"/",
-					 length(flist),flist[i],": OK")
+					 length(V),V[i],": OK")
 	msg.fail <-	paste("plotting results from data sets:",i,"/",
-					  length(flist),flist[i],": Failed!")
+					  length(V),V[i],": Failed!")
 	
 	if(is.na(x[[i]])) message(msg.fail)
 	
