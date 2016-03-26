@@ -458,6 +458,48 @@ plot.backtest <- function(x) {
 	return(g)
 }
 
+plot.backtest.db <- function(x) {
+	### PLOT THE RESULTS OF THE BACKTESTS
+	
+	df.m <- x[["stat.errors"]]
+	# 	prm <- x[["param.synthetic.sim"]]
+	# 	bias <- x[["bias"]]
+	# 	n.mc <- x[["n.mc"]]
+	# 	title <- paste(names(prm),prm,sep="=",collapse = " ; ")
+	# 	title <- paste(title, "; GI bias =",bias,"; n.MC=",n.mc)
+	# 	
+	title <- make.title.db(x)
+	g <- ggplot(df.m)
+	g <- g + geom_segment(data = df.m, 
+						  aes(x=log(s.lo),xend=log(s.hi),
+						  	y=b.md,yend=b.md,
+						  	colour=model, shape=model),
+						  size=1)
+	g <- g + ggtitle(title)
+	
+	g <- g + geom_segment(data = df.m, 
+						  aes(x=log(s.md),xend=log(s.md),
+						  	y=b.lo,yend=b.hi,
+						  	colour=model, shape=model),
+						  size=1)
+	
+	g <- g + geom_point(data = df.m, 
+						aes(x=log(s.md),y=(b.md),
+							colour=model, shape=model),
+						size=4)
+	
+	g <- g + geom_point(data = df.m, 
+						aes(x=log(s.m),y=(b.m),
+							colour=model, shape=model),
+						size=6)
+	
+	g <- g + geom_hline(yintercept=0,size=2,alpha=0.5,linetype=2)
+	
+	return(g)
+}
+
+
+
 
 
 plot.backtest.all <- function(x) {
@@ -545,7 +587,6 @@ plot.backtest.all.db <- function(x) {
 		}
 	}
 	D <- do.call("rbind",df)
-	mean.ok <- ( sum(is.infinite(D$b.m)) + sum(is.infinite(D$s.m)) ) ==0
 	
 	# --- Plots ---
 	
@@ -553,8 +594,6 @@ plot.backtest.all.db <- function(x) {
 		width=28, height=20)
 	
 	g <- ggplot(D) 
-	if(mean.ok) g <- g + geom_point(aes(x=s.m,xend=s.m,y=b.m,yend=b.m,
-										colour=model,shape=model),size=1)
 	g <- g + geom_point(aes(x=s.md,y=b.md,colour=model,shape=model),size=4)
 	g <- g + geom_segment(aes(x=s.lo,xend=s.hi,y=b.md,yend=b.md,colour=model))
 	g <- g + geom_segment(aes(x=s.md,xend=s.md,y=b.lo,yend=b.hi,colour=model))
@@ -608,8 +647,8 @@ plot.backtest.all.db <- function(x) {
 ### --- Run the backtesting ---
 ### - - - - - - - - - - - - - - -
 
-db.path <- "../Datsid/a.db"
-use.db <- TRUE
+db.path <- "../Datsid/bcktest.db"
+use.db  <- TRUE
 bcktest <- get.list.sources(db.path = db.path)
 bcktest <- bcktest[grepl(pattern = "BACKTEST",x = bcktest)]
 
@@ -658,7 +697,7 @@ for(i in 1:length(V)){
 	if(is.na(x[[i]])) message(msg.fail)
 	
 	if(!is.na(x[[i]])){
-		g[[i]] <- plot.backtest(x[[i]])
+		g[[i]] <- plot.backtest.db(x[[i]])
 		try.plot <- try(plot(g[[i]]), silent = TRUE)
 		if(class(try.plot)!="try-error") message(msg.ok)
 		if(class(try.plot)=="try-error") message(msg.fail)
