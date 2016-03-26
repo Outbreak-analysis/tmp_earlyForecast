@@ -410,6 +410,14 @@ make.title <- function(x) {
 	return(title)
 }
 
+make.title.db <- function(x) {
+	prm <- as.character(x$df.t.bounds$datafile[1])
+	bias <- x[["bias"]]
+	n.mc <- x[["n.mc"]]
+	title <- paste0(prm, "; GIbias=",bias,"; MC=",n.mc)
+	return(title)
+}
+
 plot.backtest <- function(x) {
 	### PLOT THE RESULTS OF THE BACKTESTS
 	
@@ -457,10 +465,10 @@ plot.backtest.all <- function(x) {
 	
 	# Merge all data frame into a single one:
 	df <- list()
-	for(i in 1:length(flist)){
+	for(i in 1:length(x)){
 		if( is.list(x[[i]]) ){
 			df[[i]] <- x[[i]]$stat.errors
-			df[[i]]$dataset <- make.title(x[[i]])
+			df[[i]]$dataset <- make.title.db(x[[i]])
 			df[[i]]$R0 <- x[[i]]$param.synthetic.sim$R0
 			df[[i]]$DOLI <- x[[i]]$param.synthetic.sim$DOL.days+x[[i]]$param.synthetic.sim$DOI.days
 		}
@@ -522,6 +530,80 @@ plot.backtest.all <- function(x) {
 }
 
 
+plot.backtest.all.db <- function(x) {
+	### PLOT BACKTESTS FROM ALL DATASETS (using facet_wrap)
+	
+	# Merge all data frame into a single one:
+	df <- list()
+	for(i in 1:length(x)){
+		if( is.list(x[[i]]) ){
+			df[[i]] <- x[[i]]$stat.errors
+			synthetic_i <- make.title.db(x[[i]])
+			df[[i]]$dataset <- synthetic_i
+			df[[i]]$R0 <- get.prm.value.from.source(synthetic_i,"R0")  
+			df[[i]]$DOLI <- get.prm.value.from.source(synthetic_i,"DOL.days")+get.prm.value.from.source(synthetic_i,"DOI.days")
+		}
+	}
+	D <- do.call("rbind",df)
+	mean.ok <- ( sum(is.infinite(D$b.m)) + sum(is.infinite(D$s.m)) ) ==0
+	
+	# --- Plots ---
+	
+	pdf(paste0("plot_backtest_all_B",x[[1]]$bias,".pdf"),
+		width=28, height=20)
+	
+	g <- ggplot(D) 
+	if(mean.ok) g <- g + geom_point(aes(x=s.m,xend=s.m,y=b.m,yend=b.m,
+										colour=model,shape=model),size=1)
+	g <- g + geom_point(aes(x=s.md,y=b.md,colour=model,shape=model),size=4)
+	g <- g + geom_segment(aes(x=s.lo,xend=s.hi,y=b.md,yend=b.md,colour=model))
+	g <- g + geom_segment(aes(x=s.md,xend=s.md,y=b.lo,yend=b.hi,colour=model))
+	g <- g + geom_hline(yintercept = 0, linetype=2, colour="black") 
+	g <- g + scale_x_log10()
+	g <- g + scale_colour_brewer(palette = "Set1")
+	g <- g + theme(text = element_text(size = 28),
+				   strip.text.x = element_text(size = 10))
+	g <- g + xlab("MAQE") + ylab("Bias")
+	
+	g.ds <- g + facet_wrap(~dataset)
+	plot(g.ds)
+	
+	g2 <- ggplot(D) + theme(text = element_text(size=28))
+	
+	g.R0.b <- g2 + geom_pointrange(aes(x=factor(R0),
+									   y=b.md,
+									   ymin=b.lo,
+									   ymax=b.hi,
+									   colour=model,shape=model),size=1,
+								   position =position_dodge(width = 0.3)) 
+	g.R0.b <- g.R0.b + facet_grid(~DOLI) + geom_hline(yintercept = 0)+ ylab("Bias")
+	plot(g.R0.b)
+	
+	g.R0.s <- g2 + geom_pointrange(aes(x=factor(R0),
+									   y=s.md,
+									   ymin=s.lo,
+									   ymax=s.hi,
+									   colour=model,shape=model),size=1,
+								   position =position_dodge(width = 0.3)) 
+	g.R0.s <- g.R0.s + facet_grid(~DOLI)
+	g.R0.s <- g.R0.s + scale_y_log10()+ ylab("MAQE")
+	plot(g.R0.s)
+	
+	g.DOLI.s <- g2 + geom_pointrange(aes(x=factor(DOLI),
+										 y=s.md,
+										 ymin=s.lo,
+										 ymax=s.hi,
+										 colour=model,shape=model),size=1,
+									 position =position_dodge(width = 0.3)) 
+	g.DOLI.s <- g.DOLI.s + facet_grid(~R0) 
+	g.DOLI.s <- g.DOLI.s + scale_y_log10()+ ylab("MAQE")
+	plot(g.DOLI.s)
+	dev.off()
+}
+
+
+
+
 ### - - - - - - - - - - - - - - -
 ### --- Run the backtesting ---
 ### - - - - - - - - - - - - - - -
@@ -555,13 +637,15 @@ if(!use.db){
 	}
 }
 
-
 save.image("backtest.RData")
+message("\n--> Backtesting done.\n")
+
+
+# = = = = Plots = = = = 
 
 pdf("plot_backtest.pdf",width=15,height = 15)
 
 g <- list()
-
 if(use.db) V <- bcktest
 if(!use.db) V <- flist
 
@@ -582,11 +666,17 @@ for(i in 1:length(V)){
 }
 dev.off()
 
-try(plot.backtest.all(x), silent=TRUE)
+message("\nPlotting all backtests...",appendLF = F)
+try(plot.backtest.all.db(x), silent=TRUE)
+message("done.")
 
-plot.data(flist = flist, 
-		  prm.bcktest.file = "prm_multi_bcktest.csv",
-		  backtest = x)
+# message("plotting data...",appendLF = F)
+# plot.data(flist = flist, 
+# 		  prm.bcktest.file = "prm_multi_bcktest.csv",
+# 		  backtest = x)
+# message("done.")
+
+
 
 # ==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 t2 <- as.numeric(Sys.time())

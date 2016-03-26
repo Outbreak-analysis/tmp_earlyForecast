@@ -3,4 +3,4 @@ trunc.date,7
 trunc.gen,2
 horiz.forecast, 4
 GI.bias, 1.0
-n.MC.max, 10
+n.MC.max, 3

@@ -233,30 +233,30 @@ get.prm.names.from.source <- function(source.string){
 }
 
 # DEBUG - - - - 
-db.path <- "../Datsid/a.db"
-country <-  'synthetic'  #  'synthetic' 'LIBERIA'
-disease <-  'synthetic'  #'synthetic' NULL
-synthetic <- NULL
-source.keys <-  "BACKTEST_2" # "SET 2" NULL
-eventtype <- "incidence"  #c("incidence","deaths")
-eventtype2 <- NULL # "confirmed"
-social.struct <- NULL   #"HCW"
-
-zz <- read.database(db.path,
-					country,
-					disease,
-					synthetic,
-					source.keys,
-					eventtype,
-					eventtype2,
-					social.struct)
-
-zz2 <- convert.for.backtest(zz)
-
-yy <- get.prm.value.from.source(source.string = zz2$source,
-								prm.name = "nE")
-
-
-ss <- get.list.sources(db.path)
+# db.path <- "../Datsid/a.db"
+# country <-  'synthetic'  #  'synthetic' 'LIBERIA'
+# disease <-  'synthetic'  #'synthetic' NULL
+# synthetic <- NULL
+# source.keys <-  "BACKTEST_2" # "SET 2" NULL
+# eventtype <- "incidence"  #c("incidence","deaths")
+# eventtype2 <- NULL # "confirmed"
+# social.struct <- NULL   #"HCW"
+# 
+# zz <- read.database(db.path,
+# 					country,
+# 					disease,
+# 					synthetic,
+# 					source.keys,
+# 					eventtype,
+# 					eventtype2,
+# 					social.struct)
+# 
+# zz2 <- convert.for.backtest(zz)
+# 
+# yy <- get.prm.value.from.source(source.string = zz2$source,
+# 								prm.name = "nE")
+# 
+# 
+# ss <- get.list.sources(db.path)
 # - - - - - - - 
 
