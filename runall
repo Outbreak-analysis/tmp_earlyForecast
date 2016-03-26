@@ -1,0 +1,9 @@
+### Generate synthetic data
+../Datsid/data/synthetic/gen-syndata 20
+
+### Build the new database
+rm -rf ../Datsid/bcktest.db
+../Datsid/buildNewDB bcktest.db
+
+### Run the backtesting
+Rscript multi_synth_forecast.R &
