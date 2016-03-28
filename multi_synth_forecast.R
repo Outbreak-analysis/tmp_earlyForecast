@@ -253,7 +253,8 @@ backtest.fcast.db <- function(db.path,
 	
 	inc.tb <- convert.for.backtest(dat0)
 	
-	prm.name <- get.prm.names.from.source(source.string = inc.tb$source)
+	prm.name.raw <- get.prm.names.from.source(source.string = inc.tb$source)
+	prm.name <- unique(prm.name.raw)
 	
 	param.synthetic.sim <- vector()
 	for(i in 1:length(prm.name)){
