@@ -15,6 +15,8 @@ find.epi.start <- function(inc,w, thres.rate, doplot = FALSE) {
 	tt <- 1:length(inc)
 	K <- vector()
 	
+	stopifnot(w<length(inc))
+	
 	if(doplot){
 		plot(tt,inc,typ="s",lwd=3)
 		abline(v=t1,lty=2)

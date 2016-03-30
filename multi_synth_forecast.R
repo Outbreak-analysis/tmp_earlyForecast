@@ -352,7 +352,7 @@ backtest.fcast.db <- function(db.path,
 	# If all df are NULL results, then something
 	# went wrong with this data set:
 	if(length(res)==0) {
-		warning(paste("---> WARNING: backtesting problems with",source.keys))
+		warning(paste("---> WARNING: backtesting problems with",source.keys,": Empty simulation!"))
 		return(NA)
 	}
 	
@@ -360,7 +360,7 @@ backtest.fcast.db <- function(db.path,
 	nullres <- unlist(lapply(res,is.null))
 	for(i in 1:length(res)){
 		if(nullres[i]) res[[i]] <- NULL # <-- assigning NULL to a list element _removes_ it
-		warning(paste("---> WARNING: backtesting problems with",source.keys))
+		warning(paste("---> WARNING: backtesting problems with",source.keys,": NULL simulation!"))
 	}
 	
 	df <- do.call("rbind", res)
@@ -499,10 +499,6 @@ plot.backtest.db <- function(x) {
 	return(g)
 }
 
-
-
-
-
 plot.backtest.all <- function(x) {
 	### PLOT BACKTESTS FROM ALL DATASETS (using facet_wrap)
 	
@@ -571,7 +567,6 @@ plot.backtest.all <- function(x) {
 	plot(g.DOLI.s)
 	dev.off()
 }
-
 
 plot.backtest.all.db <- function(x) {
 	### PLOT BACKTESTS FROM ALL DATASETS (using facet_wrap)
@@ -642,17 +637,19 @@ plot.backtest.all.db <- function(x) {
 }
 
 
-
-
 ### - - - - - - - - - - - - - - -
 ### --- Run the backtesting ---
 ### - - - - - - - - - - - - - - -
 
+# Models used to generate synthetic data:
+syn.models <- list("SEmInR", "RESuDe")
+# Identify the source names of  synthetic data
 db.path <- "../Datsid/bcktest.db"
 use.db  <- TRUE
 bcktest <- get.list.sources(db.path = db.path)
-bcktest <- bcktest[grepl(pattern = "BACKTEST",x = bcktest)]
-
+idx <-  lapply(syn.models, grepl,x = bcktest )
+idx <- rowSums(matrix(unlist(idx),ncol=length(syn.models)))
+bcktest <- bcktest[as.logical(idx)]
 
 # Read all data available:
 cmd <- "ls ./data/*.RData"
@@ -665,9 +662,9 @@ x <- list()
 if(use.db){
 	for(i in 1:length(bcktest)){
 		message(paste("data sets:",i,"/", length(bcktest), bcktest[i]))
-		x[[i]] <- backtest.fcast.db(db.path = db.path,
+		x[[i]] <- backtest.fcast.db(db.path     = db.path,
 									source.keys = bcktest[i],
-									eventtype = "incidence")
+									eventtype   = "incidence")
 	}
 }
 if(!use.db){
@@ -683,8 +680,9 @@ message("\n--> Backtesting done.\n")
 
 # = = = = Plots = = = = 
 
-pdf("plot_backtest.pdf",width=15,height = 15)
+message("\nPlotting all backtests...",appendLF = F)
 
+pdf("plot_backtest.pdf",width=15,height = 15)
 g <- list()
 if(use.db) V <- bcktest
 if(!use.db) V <- flist
@@ -706,16 +704,8 @@ for(i in 1:length(V)){
 }
 dev.off()
 
-message("\nPlotting all backtests...",appendLF = F)
 try(plot.backtest.all.db(x), silent=TRUE)
 message("done.")
-
-# message("plotting data...",appendLF = F)
-# plot.data(flist = flist, 
-# 		  prm.bcktest.file = "prm_multi_bcktest.csv",
-# 		  backtest = x)
-# message("done.")
-
 
 
 # ==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
