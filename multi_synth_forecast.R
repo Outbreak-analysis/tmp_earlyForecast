@@ -23,7 +23,7 @@ source("forecast_early_short.R")
 source("forecast_utils.R")
 
 
-plot.data <- function(flist, prm.bcktest.file, backtest){
+plot.data.old <- function(flist, prm.bcktest.file, backtest){
 	### PLOT FULL DATA SETS 
 	### AS WELL AS THE WINDOWS OF DATA USED
 	
@@ -80,6 +80,37 @@ plot.data <- function(flist, prm.bcktest.file, backtest){
 	g <- g + geom_point(data = D.ts,aes(x=tstart,y=0.1),colour="red",shape=2)
 	plot(g)
 	dev.off()
+}
+
+plot.data <- function(db.path,
+					  source.keys.vec,
+					  country = NULL,
+					  disease = NULL,
+					  synthetic = NULL,
+					  eventtype = NULL,
+					  eventtype2 = NULL,
+					  social.struct = NULL){
+	
+	# Load synthetic data:
+	dat <- list()
+	for(i in 1:length(source.keys.vec)){
+		dat[[i]] <- read.database(db.path,
+							  country,
+							  disease,
+							  synthetic,
+							  source.keys.vec[i],
+							  eventtype,
+							  eventtype2,
+							  social.struct)	
+	}
+	dat0 <- do.call("rbind", dat)
+	
+	inc.tb <- convert.for.backtest(dat0)
+	df <- subset(inc.tb, mc <9)
+	g <- ggplot(df) + geom_line(aes(x=tb, y=inc, colour=factor(mc)))
+	g <- g + facet_wrap(~source,scales="free")
+	g <- g + scale_y_log10()
+	plot(g)
 }
 
 
@@ -658,6 +689,13 @@ flist <- system(command = cmd, intern = TRUE)
 # Backtest every data sets:
 
 x <- list()
+
+pdf("plot_data.pdf",width=12,height = 10)
+plot.data(db.path = db.path, 
+		  source.keys.vec = bcktest, 
+		  eventtype = 'incidence')
+dev.off()
+
 
 if(use.db){
 	for(i in 1:length(bcktest)){
