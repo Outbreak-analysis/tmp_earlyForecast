@@ -94,14 +94,14 @@ plot.data <- function(db.path,
 	# Load synthetic data:
 	dat <- list()
 	for(i in 1:length(source.keys.vec)){
-		dat[[i]] <- read.database(db.path,
-							  country,
-							  disease,
-							  synthetic,
-							  source.keys.vec[i],
-							  eventtype,
-							  eventtype2,
-							  social.struct)	
+		dat[[i]] <- read.database(db.path = db.path,
+								  country = country,
+								  disease = disease,
+								  synthetic = synthetic,
+								  source.keys = source.keys.vec[i],
+								  eventtype =  eventtype,
+								  eventtype2 =  eventtype2,
+								  social.struct = social.struct)	
 	}
 	dat0 <- do.call("rbind", dat)
 	
