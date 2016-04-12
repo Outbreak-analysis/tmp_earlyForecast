@@ -284,9 +284,10 @@ backtest.fcast.db <- function(db.path,
 	
 	inc.tb <- convert.for.backtest(dat0)
 	
+	# Extract parameter information 
+	# located in column named 'source'
 	prm.name.raw <- get.prm.names.from.source(source.string = inc.tb$source)
 	prm.name <- unique(prm.name.raw)
-	
 	param.synthetic.sim <- vector()
 	for(i in 1:length(prm.name)){
 		param.synthetic.sim[i] <- get.prm.value.from.source(inc.tb$source, 
@@ -297,6 +298,8 @@ backtest.fcast.db <- function(db.path,
 	nI.true  <- get.prm.value.from.source(inc.tb$source, prm.name = "nI")[1]
 	DOL.true <- get.prm.value.from.source(inc.tb$source, prm.name = "DOL.days")[1]
 	DOI.true <- get.prm.value.from.source(inc.tb$source, prm.name = "DOI.days")[1]
+	GImean   <- get.prm.value.from.source(inc.tb$source, prm.name = "GImean")[1]
+	GIvar    <- get.prm.value.from.source(inc.tb$source, prm.name = "GIvar")[1]
 	
 	# Parameters for the backtesting:
 	prm <- read.csv("prm_multi_bcktest.csv",header = FALSE)
@@ -305,7 +308,7 @@ backtest.fcast.db <- function(db.path,
 	# this time is supposed unknown)
 	trunc.type <- as.character(prm[prm[,1]=="trunc.type",2])
 	trunc.date <- as.numeric(as.character(prm[prm[,1]=="trunc.date",2]))
-	trunc.gen <- as.numeric(as.character(prm[prm[,1]=="trunc.gen",2]))
+	trunc.gen  <- as.numeric(as.character(prm[prm[,1]=="trunc.gen",2]))
 	
 	if(trunc.type=="date") trunc.gen <- NULL
 	if(trunc.type=="generation") trunc.date <- NULL
@@ -318,8 +321,16 @@ backtest.fcast.db <- function(db.path,
 	
 	# Generation interval
 	bias <- as.numeric(as.character(prm[prm[,1]=="GI.bias",2]))
-	GI.mean <- bias * (DOL.true+DOI.true/2)  # approx!
-	GI.stdv <- GI.mean/sqrt((mean(nE.true,nI.true))) # approx!
+	if(!is.na(DOL.true)){
+		GI.mean <- bias * (DOL.true+DOI.true/2)  # approx!
+		GI.mean.true <- (DOL.true+DOI.true/2)  # approx!
+		GI.stdv <- GI.mean/sqrt((mean(nE.true,nI.true))) # approx!
+	}
+	if(is.na(DOL.true)){
+		GI.mean <- bias * GImean
+		GI.mean.true <- GImean
+		GI.stdv <- sqrt(GIvar)
+	}
 	
 	# This loop performs the forecast 
 	# on every synthetic data set.
@@ -336,7 +347,7 @@ backtest.fcast.db <- function(db.path,
 	idx.apply <- unique(inc.tb$mc)
 	message(paste("Synthetic data contains",length(idx.apply),"MC iterations"))
 	# Reduce backtesting to specified MC realizations:
-	if(n.MC.max>0) {
+	if(n.MC.max>0 & n.MC.max<length(idx.apply)) {
 		idx.apply <- idx.apply[1:n.MC.max]
 		message(paste("but not more than",length(idx.apply),"are used."))
 		inc.tb <- subset(inc.tb, mc %in% idx.apply)
@@ -345,7 +356,7 @@ backtest.fcast.db <- function(db.path,
 	inc.tb$datafile <- source.keys
 	
 	# approximate generation interval length:
-	inc.tb$GI <- DOL.true + DOI.true/2
+	inc.tb$GI <- GI.mean.true
 	
 	### Parallel execution:
 	
@@ -690,7 +701,7 @@ flist <- system(command = cmd, intern = TRUE)
 
 x <- list()
 
-pdf("plot_data.pdf",width=12,height = 10)
+pdf("plot_data.pdf",width=25,height = 20)
 plot.data(db.path = db.path, 
 		  source.keys.vec = bcktest, 
 		  eventtype = 'incidence')
