@@ -1,5 +1,5 @@
 ### Generate synthetic data
-../Datsid/data/synthetic/gen-syndata 20
+../Datsid/data/synthetic/gen-syndata $1
 
 ### Build the new database
 rm -rf ../Datsid/bcktest.db
