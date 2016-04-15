@@ -28,7 +28,6 @@ plot.data.old <- function(flist, prm.bcktest.file, backtest){
 	### AS WELL AS THE WINDOWS OF DATA USED
 	
 	prm <- read.csv(prm.bcktest.file,header = FALSE)
-
 	trunc.type <- as.character(prm[prm[,1]=="trunc.type",2])
 	trunc.date <- as.numeric(as.character(prm[prm[,1]=="trunc.date",2]))
 	trunc.gen <- as.numeric(as.character(prm[prm[,1]=="trunc.gen",2]))
@@ -101,13 +100,25 @@ plot.data <- function(db.path,
 								  source.keys = source.keys.vec[i],
 								  eventtype =  eventtype,
 								  eventtype2 =  eventtype2,
-								  social.struct = social.struct)	
+								  social.struct = social.struct)
+		
+		# Retrieve GI information from synthetic data:
+		DOL <- get.prm.value.from.source(source.keys.vec[i],"DOL")
+		DOI <- get.prm.value.from.source(source.keys.vec[i],"DOI")
+		nI <- get.prm.value.from.source(source.keys.vec[i],"nI")
+		GImean <- get.prm.value.from.source(source.keys.vec[i],"GImean")
+		if(is.na(DOL)) dat[[i]]$GI <- GImean
+		if(is.na(GImean)) dat[[i]]$GI <- DOL+DOI*(nI+1)/2/nI
 	}
 	dat0 <- do.call("rbind", dat)
-	
 	inc.tb <- convert.for.backtest(dat0)
-	df <- subset(inc.tb, mc <9)
-	g <- ggplot(df) + geom_line(aes(x=tb, y=inc, colour=factor(mc)))
+	
+	Davg <- ddply(inc.tb,c("tb","source"),summarize,
+				  inc.m = mean(inc),
+				  inc.lo = quantile(inc,probs = 0.05),
+				  inc.hi = quantile(inc,probs = 0.95))
+	g <- ggplot(Davg) + geom_line(aes(x=tb,y=inc.m),size=1)
+	g <- g + geom_ribbon(aes(x=tb,ymin=inc.lo,ymax=inc.hi),alpha=0.2)
 	g <- g + facet_wrap(~source,scales="free")
 	g <- g + scale_y_log10()
 	plot(g)
@@ -267,6 +278,7 @@ backtest.fcast.db <- function(db.path,
 							  eventtype = NULL,
 							  eventtype2 = NULL,
 							  social.struct = NULL,
+							  plotdata = FALSE,
 							  save.to.file = TRUE) {
 	### BACKTEST FORECASTING MODELS 
 	### FROM PRE-SIMULATED SYNTHETIC DATA
@@ -309,7 +321,6 @@ backtest.fcast.db <- function(db.path,
 	trunc.type <- as.character(prm[prm[,1]=="trunc.type",2])
 	trunc.date <- as.numeric(as.character(prm[prm[,1]=="trunc.date",2]))
 	trunc.gen  <- as.numeric(as.character(prm[prm[,1]=="trunc.gen",2]))
-	
 	if(trunc.type=="date") trunc.gen <- NULL
 	if(trunc.type=="generation") trunc.date <- NULL
 	if(trunc.type!="generation" & trunc.type!="date") trunc.gen <- trunc.date <- NULL
@@ -332,6 +343,23 @@ backtest.fcast.db <- function(db.path,
 		GI.stdv <- sqrt(GIvar)
 	}
 	
+	# approximate generation interval length:
+	inc.tb$GI <- GI.mean.true
+	
+	# plot truncated data:
+	if(plotdata){
+		ss <- gregexpr(source.keys,pattern = ";",fixed = TRUE)[[1]][1]
+		pdf(paste0("plot-data-",substr(source.keys,start = 1,stop = ss-1),".pdf"),width = 15,height=10)
+		if(is.null(trunc.date)) ttr <- GI.mean.true*trunc.gen
+		if(is.null(trunc.gen)) ttr <- trunc.date
+		inc.plot <- subset(inc.tb, tb<=ttr)
+		g <- ggplot(inc.plot) + geom_line(aes(x=tb,y=inc))
+		g <- g + facet_wrap(~mc)
+		g <- g + ggtitle(source.keys)
+		plot(g)
+		dev.off()
+	}
+		
 	# This loop performs the forecast 
 	# on every synthetic data set.
 	# Each forecast is evaluated with 
@@ -353,20 +381,10 @@ backtest.fcast.db <- function(db.path,
 		inc.tb <- subset(inc.tb, mc %in% idx.apply)
 	}
 	
-	inc.tb$datafile <- source.keys
-	
-	# approximate generation interval length:
-	inc.tb$GI <- GI.mean.true
+	# to delete when sure -->  inc.tb$datafile <- source.keys
+
 	
 	### Parallel execution:
-	
-	# Object 'all.sim' can be very large
-	# when many synthetic data were generated
-	# but this object is not used (for now).
-	# So, removed from memory before being exported
-	# because it can crash the memory
-	rm("all.sim")
-	
 	sfExportAll()
 	res0 <- sfSapply(idx.apply, 
 					 simplify = FALSE,
@@ -713,7 +731,8 @@ if(use.db){
 		message(paste("data sets:",i,"/", length(bcktest), bcktest[i]))
 		x[[i]] <- backtest.fcast.db(db.path     = db.path,
 									source.keys = bcktest[i],
-									eventtype   = "incidence")
+									eventtype   = "incidence",
+									plotdata    = TRUE)
 	}
 }
 if(!use.db){
