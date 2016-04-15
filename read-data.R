@@ -222,7 +222,8 @@ get.prm.value.from.source <- function(source.string,prm.name) {
 	# Retrieve positions of all semicolon:
 	sc <- gregexpr(";",x2,fixed=TRUE)[[1]]
 	# Retrieve the value between the next 2 underscores (following param name):
-	val <- as.numeric(substr(x2,start = uds[1]+1, stop= sc[1]-1))
+	if(sc[1]>0) val <- as.numeric(substr(x2,start = uds[1]+1, stop= sc[1]-1))
+	if(sc[1]<0) val <- as.numeric(substring(x2,first = uds[1]+1))
 	return(val)
 }
 

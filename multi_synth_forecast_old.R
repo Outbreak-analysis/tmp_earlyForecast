@@ -1,402 +1,33 @@
+###
+###   FORECAST MODELS BACKTESTING
+###
 
-model.colour <- function(model.name){
-	col <- "grey"
-	if(model.name == "Cori") col <- "black"
-	if(model.name == "WalLip") col <- "blue"
-	if(model.name == "WhiPag") col <- "green"
-	if(model.name == "SeqBay") col <- "red"
-	if(model.name == "IDEA") col <- "orange"
-	return(col)
-}
+library(ggplot2);theme_set(theme_bw())
+library(gridExtra)
+library(plyr)
+library(snowfall)
+library(parallel)
 
-compare.fcast.early.shiny <- function(fcast, dolog){
-	### Compare forecasts for Shiny GUI
-	
-	n.model <- length(fcast)
-	tgt <- fcast[[1]]$target.dat
-	n.tgt <- length(tgt)
-	n <- length(fcast[[1]]$inc.f.m)
-	frng <- (n-n.tgt+1):n
-	n.obs <- length(fcast[[1]]$obs.dat)
-	
-	obs.dat <- fcast[[1]]$obs.dat
-	tgt.dat <- fcast[[1]]$target.dat
-	
-	ymax <- 0
-	for (i in 1:length(fcast)) 
-		ymax <- max(ymax, fcast[[i]]$inc.f.hi, tgt.dat)
-	
-	ymin <- ifelse(dolog,1,0)
-	plot(0, cex=0,
-		 xlim = c(1,length(fcast[[i]]$inc.f.m)),
-		 ylim = c(ymin,ymax),
-		 las = 1,
-		 log = ifelse(dolog,"y",""),
-		 xlab = "time",
-		 ylab = "")
-	grid(lty=2,col="lightgrey")
-	
-	nudge <- 0.15*c(0:(length(fcast)-1))
-	nudge <- nudge-mean(nudge)
-	
-	# Plot observed data:
-	points(x = 1:n.obs, y = obs.dat, typ="s")
-	points(x = 1:n.obs, y = obs.dat, typ="p", pch=16)
-	# Plot future data if available:
-	if(!is.null(tgt.dat)){
-		points(x = frng, y = tgt.dat, 
-			   cex = 3,
-			   col = "lightgrey",
-			   pch = 15)
-	}
-	lwd.fcast <- 4
-	
-	for (i in 1:n.model) {
-		f.m <- fcast[[i]]$inc.f.m[frng]
-		f.hi <- fcast[[i]]$inc.f.hi[frng]
-		f.lo <- fcast[[i]]$inc.f.lo[frng]
-		
-		points(x = frng+nudge[i],
-			   y = f.m,
-			   col = model.colour(names(fcast[i])), 
-			   lwd = lwd.fcast, 
-			   cex = 1.3)
-		segments(x0 = frng+nudge[i], 
-				 x1=frng+nudge[i],
-				 y0 = f.lo, y1 = f.hi, 
-				 col = model.colour(names(fcast[i])), 
-				 lwd = lwd.fcast/2)
-	}
-	legend(x="topleft",
-		   legend = names(fcast),
-		   col = sapply(names(fcast),FUN = model.colour),
-		   lwd = lwd.fcast, 
-		   pch = 1)
-}
+t1 <- as.numeric(Sys.time())
 
-compare.fcast.early <- function(fcast){
-	### Compare forecasts
-	
-	tgt <- fcast[[1]]$target.dat
-	n.tgt <- length(tgt)
-	n <- length(fcast[[1]]$inc.f.m)
-	frng <- (n-n.tgt+1):n
-	cex <- 2
-	nudge <- 0.015*c(0:length(fcast))
-	nudge <- nudge-mean(nudge)
-	dolog <- TRUE
-	if(dolog) tgt <- log(tgt)
-	
-	yrng <- range(unlist(fcast[[1:3]]))
-	rng <- list()
-	for(i in 1:length(fcast)) 
-		rng[[i]]<- range(fcast[[i]][["inc.f.lo"]][frng],fcast[[i]][["inc.f.hi"]][frng])
-	yrng <- range(unlist(rng))
-	if(dolog) yrng<-log(yrng)
-	
-	for(i in 1:length(fcast)){
-		
-		f.m <- fcast[[i]]$inc.f.m[frng]
-		f.lo <- fcast[[i]]$inc.f.lo[frng]
-		f.hi <- fcast[[i]]$inc.f.hi[frng]
-		
-		if(dolog){
-			f.m <- log(f.m)
-			f.lo <- log(f.lo)
-			f.hi <- log(f.hi)
-		}
-		pch <- 14+i
-		if(i==1){
-			plot(x=tgt+nudge[i],
-				 y=f.m,
-				 xlab="actual incidence",
-				 ylab="forecast incidence",
-				 ylim=yrng,
-				 xlim=c(min(tgt),1.05*max(tgt)),
-				 pch=pch, col=i, typ="o",cex=cex)
-			grid()
-			abline(0,1,lwd=9,lty=1,col="gray")
-		}
-		if(i>1){
-			lines(x=tgt+nudge[i],y=f.m,pch=pch, col=i, typ="o",cex=cex)
-		}
-		segments(x0=tgt+nudge[i],x1=tgt+nudge[i],y0=f.lo,y1=f.hi,col=i,lwd=3)
-		text(x=tgt[length(tgt)],y=f.m[length(f.m)],labels = names(fcast)[i],col=i,pos=4)
-	}
-	irng <- c(1:length(fcast))
-	legend(x="topleft",col = irng, pch=14+irng, legend = names(fcast))
-}
+# - - - - - - - - - - - - - - - - - - - - - - -
+# There is a problem in 'OverallInfectivity' 
+# function when data set is short.
+use.DC.version.of.EpiEstim <- TRUE  
+if(!use.DC.version.of.EpiEstim) library(EpiEstim)
+if(use.DC.version.of.EpiEstim) source("EstimationR.R")
+# - - - - - - - - - - - - - - - - - - - - - - -
 
-dist.target <- function(fcast, rel.err = FALSE){
-	
-	M <- length(fcast) # Number of models
-	ME <- vector(length = M) # Mean Error
-	MAE <- vector(length = M) # Mean Absobule Error
-	MQE <- vector(length = M)   # Mean Quantile Error
-	
-	for(i in 1:M){
-		x <- fcast[[i]]
-		tg <- x$target.dat
-		n.tg <- length(tg)
-		n.f <- length(x$inc.f.m)  
-		# Mean and quantiles of forecasts
-		frng <- (n.f-n.tg+1):n.f
-		n <- length(frng) # number of actual forecasts
-		fm <- x$inc.f.m[frng]
-		flo <- x$inc.f.lo[frng]
-		fhi <- x$inc.f.hi[frng]
-		if(rel.err){
-			tg[tg==0] <- 1 
-			ME[i] <- sum(fm/tg-1)/n
-			MAE[i] <- sum(abs(fm/tg-1))/n
-			MQE[i] <- sum(max(flo/tg-1,0))/n + sum(max(1-fhi/tg,0))/n 
-		}
-		if(!rel.err){
-			ME[i] <- sum(fm-tg)/n
-			MAE[i] <- sum(abs(fm-tg))/n
-			MQE[i] <- sum(max(flo-tg,0))/n + sum(max(tg-fhi,0))/n 
-		}
-	}
-	df <- data.frame(model=names(fcast),ME,MAE,MQE)
-	return(df)
-}
+source("read-data.R")
+source("forecast_early_short.R")
+source("forecast_utils.R")
 
-
-create.model.prm <- function(dat,
-						  dat.full,
-						  horiz.forecast ,  
-						  GI.mean,GI.stdv,
-						  GI.dist,
-						  cori.window){
-	
-	PRM <- list(Cori = list(model = "CoriParam",  
-							dat = dat,
-							dat.full = dat.full,
-							horiz.forecast = horiz.forecast,  
-							GI.val = c(GI.mean,GI.stdv),
-							cori.window = cori.window),
-				
-				WalLip = list(model = "WalLip",
-							  dat = dat,
-							  dat.full = dat.full,
-							  horiz.forecast = horiz.forecast,  
-							  GI.dist = "gamma",  # gamma, lognormal, weibull
-							  GI.val = c(GI.mean,GI.stdv)),
-				
-				WhiPag = list(model = "WhiPag",
-							  dat = dat,
-							  dat.full = dat.full,
-							  horiz.forecast = horiz.forecast,  
-							  GI.dist = "gamma",  # gamma, lognormal, weibull
-							  GI.val = c(GI.mean,GI.stdv)),
-				
-				SeqBay = list(model = "SeqBay",
-							  dat = dat,
-							  dat.full = dat.full,
-							  horiz.forecast = horiz.forecast,  
-							  GI.dist = "gamma",  # gamma, lognormal, weibull
-							  GI.val = c(GI.mean,GI.stdv))
-				,
-				IDEA = list(model = "IDEA",
-							dat = dat,
-							dat.full = dat.full,
-							horiz.forecast = horiz.forecast,  
-							GI.val = GI.mean)
-	)
-	return(PRM)
-}
-
-fcast.wrap <- function(mc, inc.tb, 
-						trunc.date,
-						trunc.generation,
-						horiz.forecast,
-						GI.mean, GI.stdv,
-						GI.dist = "gamma",
-						cori.window = 3,
-						do.plot = FALSE){
-	### FORECASTING FUNCTION:
-	### CALLS EVERY MODELS
-	
-	# Read incidence data:
-	x <- read.incidence.obj(inc.tb = inc.tb,
-						 type = "simulated",
-						 find.epi.start.window = horiz.forecast + 3,
-						 find.epi.start.thresrate = 0.5,
-						 truncate.date = trunc.date,
-						 truncate.generation = trunc.generation,
-						 mc.choose = mc)
-	if(is.na(x)) return(NULL)
-	
-	dat <- x[["dat"]]
-	dat.full <- x[["dat.full"]]
-	t.epi.start <- x[["tstart"]]
-	t.epi.trunc <- x[["ttrunc"]]
-	
-	# Set parameters for every models:
-	PRM <- create.model.prm(dat,
-						 dat.full,
-						 horiz.forecast ,  
-						 GI.mean, 
-						 GI.stdv,
-						 GI.dist = GI.dist,
-						 cori.window = cori.window)
-	# Forecast:
-	fcast <- try(lapply(PRM,
-						fcast.inc.early.short,
-						do.plot=do.plot),
-				 silent = TRUE)
-	
-	# Merge all results in one data frame:	
-	df.tmp <- NULL
-	if(class(fcast)!="try-error"){
-		df.tmp <- dist.target(fcast)
-		df.tmp$mc <- mc
-	}
-	return(list(df = df.tmp, 
-				t.epi.start = t.epi.start,
-				t.epi.trunc = t.epi.trunc))
-}
-
-fcast.wrap.new <- function(mc, dat.full, dat,
-						   horiz.forecast,
-						   GI.mean, GI.stdv,
-						   GI.dist = "gamma",
-						   cori.window = 3,
-						   rel.err = FALSE,
-						   do.plot = FALSE){
-	### FORECASTING FUNCTION:
-	### CALLS EVERY MODELS
-	
-	# Set parameters for every models:
-	PRM <- create.model.prm(dat,
-							dat.full,
-							horiz.forecast ,  
-							GI.mean, 
-							GI.stdv,
-							GI.dist = GI.dist,
-							cori.window = cori.window)
-	# Forecast:
-	fcast <- try(lapply(PRM,
-						fcast.inc.early.short,
-						do.plot = do.plot),
-				 silent = TRUE)
-	
-	# Merge all results in one data frame:	
-	df.tmp <- NULL
-	if(class(fcast)!="try-error"){
-		df.tmp <- dist.target(fcast,rel.err)
-		df.tmp$mc <- mc
-	}
-	return(df.tmp)
-}
-
-get.synthetic.data.db <- function(db.path,
-								  country = NULL,
-								  disease = NULL,
-								  synthetic = NULL,
-								  source.keys = NULL,
-								  eventtype = NULL,
-								  eventtype2 = NULL,
-								  social.struct = NULL,
-								  save.to.file = TRUE){
-	# Get the incidence curves from data base
-	# (there are potentially several Monte-Carlo realizations)
-	
-	# Load synthetic data:
-	dat0 <- read.database(db.path,
-						  country,
-						  disease,
-						  synthetic,
-						  source.keys,
-						  eventtype,
-						  eventtype2,
-						  social.struct)
-	# Reformat (keeps only what's used later on)
-	inc.tb <- convert.for.backtest(dat0)
-	return(inc.tb)
-}
-
-
-get.synthetic.epi.param <- function(source){
-	# Extract parameter information 
-	# located in column named 'source'
-	prm.name <- get.prm.names.from.source(source.string = source)
-	x <- vector()
-	for(i in 1:length(prm.name)){
-		x[i] <- get.prm.value.from.source(source, prm.name = prm.name[i])[1]
-	}
-	names(x) <- prm.name
-	return(x)
-}
-
-
-get.GI <- function(trueparam){
-	### Retrieve GI from model parameters
-	###
-	seir <- sum(grepl('DOL.days',names(trueparam)))
-	if(seir>0) {
-		DOL.true <- trueparam['DOL.days']
-		DOI.true <- trueparam['DOI.days']
-		nI.true <- trueparam['nI']
-		nE.true <- trueparam['nI']
-		GI.mean <- (DOL.true+DOI.true/2/nI.true*(nI.true+1))
-		GI.var <- GI.mean/mean(nI.true,nE.true) # <-- not sure about that!!!
-	}
-	if(seir==0) {
-		GI.mean <- trueparam['GImean']
-		GI.var <- trueparam['GIvar']
-	}
-	res <- as.numeric(c(GI.mean,GI.var))
-	return(c(GI.mean=res[1], GI.var=res[2]))
-}
-
-get.trunc.time <- function(file,trueparam){
-	
-	# Parameters for the backtesting:
-	prm <- read.csv(file,header = FALSE)
-	
-	# Truncation date (synthetic beyond
-	# this time is supposed unknown)
-	trunc.type <- as.character(prm[prm[,1]=="trunc.type",2])
-	trunc.date <- as.numeric(as.character(prm[prm[,1]=="trunc.date",2]))
-	trunc.gen  <- as.numeric(as.character(prm[prm[,1]=="trunc.gen",2]))
-	if(trunc.type=="date") trunc.gen <- NULL
-	if(trunc.type=="generation") trunc.date <- NULL
-	if(trunc.type!="generation" & trunc.type!="date") trunc.gen <- trunc.date <- NULL
-	
-	# # Generation interval
-	# seir <- sum(grepl('DOL.days',names(trueparam)))
-	# if(seir>0) {
-	# 	DOL.true <- trueparam['DOL.days']
-	# 	DOI.true <- trueparam['DOI.days']
-	# 	nI.true <- trueparam['nI']
-	# 	GI.mean <- (DOL.true+DOI.true/2/nI.true*(nI.true+1))
-	# }
-	# if(seir==0)	 GI.mean <- trueparam['GImean']
-	GI.mean <- get.GI(trueparam)['GI.mean']
-	# truncated time:
-	if(is.null(trunc.date)) ttr <- as.numeric(GI.mean*trunc.gen)
-	if(is.null(trunc.gen))  ttr <- as.numeric(trunc.date)
-	return(ttr)
-}
-
-
-
-#
-#
-#
-#
-#
-#
-#
-#
 
 plot.data.old <- function(flist, prm.bcktest.file, backtest){
 	### PLOT FULL DATA SETS 
 	### AS WELL AS THE WINDOWS OF DATA USED
 	
 	prm <- read.csv(prm.bcktest.file,header = FALSE)
-	
 	trunc.type <- as.character(prm[prm[,1]=="trunc.type",2])
 	trunc.date <- as.numeric(as.character(prm[prm[,1]=="trunc.date",2]))
 	trunc.gen <- as.numeric(as.character(prm[prm[,1]=="trunc.gen",2]))
@@ -430,7 +61,7 @@ plot.data.old <- function(flist, prm.bcktest.file, backtest){
 	D.ts.avg <- ddply(D.ts,"dataset",summarize,
 					  tstart.m = mean(tstart),
 					  ttrunc.m = mean(ttrunc)
-	)
+					  )
 	
 	pdf("plot_data.pdf",width=24,height = 16)
 	
@@ -469,13 +100,25 @@ plot.data <- function(db.path,
 								  source.keys = source.keys.vec[i],
 								  eventtype =  eventtype,
 								  eventtype2 =  eventtype2,
-								  social.struct = social.struct)	
+								  social.struct = social.struct)
+		
+		# Retrieve GI information from synthetic data:
+		DOL <- get.prm.value.from.source(source.keys.vec[i],"DOL")
+		DOI <- get.prm.value.from.source(source.keys.vec[i],"DOI")
+		nI <- get.prm.value.from.source(source.keys.vec[i],"nI")
+		GImean <- get.prm.value.from.source(source.keys.vec[i],"GImean")
+		if(is.na(DOL)) dat[[i]]$GI <- GImean
+		if(is.na(GImean)) dat[[i]]$GI <- DOL+DOI*(nI+1)/2/nI
 	}
 	dat0 <- do.call("rbind", dat)
-	
 	inc.tb <- convert.for.backtest(dat0)
-	df <- subset(inc.tb, mc <9)
-	g <- ggplot(df) + geom_line(aes(x=tb, y=inc, colour=factor(mc)))
+	
+	Davg <- ddply(inc.tb,c("tb","source"),summarize,
+				  inc.m = mean(inc),
+				  inc.lo = quantile(inc,probs = 0.05),
+				  inc.hi = quantile(inc,probs = 0.95))
+	g <- ggplot(Davg) + geom_line(aes(x=tb,y=inc.m),size=1)
+	g <- g + geom_ribbon(aes(x=tb,ymin=inc.lo,ymax=inc.hi),alpha=0.2)
 	g <- g + facet_wrap(~source,scales="free")
 	g <- g + scale_y_log10()
 	plot(g)
@@ -553,17 +196,17 @@ backtest.fcast <- function(RData.file,
 	
 	sfExportAll()
 	res0 <- sfSapply(idx.apply, 
-					 simplify = FALSE,
-					 fcast.wrap, 
-					 inc.tb = inc.tb,
-					 trunc.date = trunc.date,
-					 trunc.generation = trunc.gen,
-					 horiz.forecast = horiz.forecast ,
-					 GI.mean = GI.mean,
-					 GI.stdv = GI.stdv ,
-					 GI.dist = "gamma" ,
-					 cori.window = 3,
-					 do.plot = FALSE)
+					simplify = FALSE,
+					fcast.wrap, 
+					inc.tb = inc.tb,
+					trunc.date = trunc.date,
+					trunc.generation = trunc.gen,
+					horiz.forecast = horiz.forecast ,
+					GI.mean = GI.mean,
+					GI.stdv = GI.stdv ,
+					GI.dist = "gamma" ,
+					cori.window = 3,
+					do.plot = FALSE)
 	sfStop()
 	
 	res <- list()
@@ -593,7 +236,7 @@ backtest.fcast <- function(RData.file,
 	
 	df.t.bounds <- data.frame(tstart = unlist(tstart), 
 							  ttrunc = unlist(ttrunc),
-							  datafile = RData.file)
+							datafile = RData.file)
 	
 	# If all NULL results, then something
 	# went wrong with this data set:
@@ -628,20 +271,17 @@ backtest.fcast <- function(RData.file,
 }
 
 
-
-
-backtest.fcast.db <- function(db.path,
-							  country = NULL,
-							  disease = NULL,
-							  synthetic = NULL,
-							  source.keys = NULL,
-							  eventtype = NULL,
-							  eventtype2 = NULL,
-							  social.struct = NULL,
-							  save.to.file = TRUE) {
-	### BACKTEST FORECASTING MODELS 
-	### FROM PRE-SIMULATED SYNTHETIC DATA
-	### READING DATA FROM DATABASE
+get.synthetic.data.db <- function(db.path,
+								  country = NULL,
+								  disease = NULL,
+								  synthetic = NULL,
+								  source.keys = NULL,
+								  eventtype = NULL,
+								  eventtype2 = NULL,
+								  social.struct = NULL,
+								  save.to.file = TRUE){
+	# Get the incidence curves from data base
+	# (there are potentially several Monte-Carlo realizations)
 	
 	# Load synthetic data:
 	dat0 <- read.database(db.path,
@@ -652,6 +292,35 @@ backtest.fcast.db <- function(db.path,
 						  eventtype,
 						  eventtype2,
 						  social.struct)
+	# Reformat (keeps only what's used later on)
+	inc.tb <- convert.for.backtest(dat0)
+	return(inc.tb)
+}
+
+
+backtest.fcast.db <- function(db.path,
+							  country = NULL,
+							  disease = NULL,
+							  synthetic = NULL,
+							  source.keys = NULL,
+							  eventtype = NULL,
+							  eventtype2 = NULL,
+							  social.struct = NULL,
+							  plotdata = FALSE,
+							  save.to.file = TRUE) {
+	### BACKTEST FORECASTING MODELS 
+	### FROM PRE-SIMULATED SYNTHETIC DATA
+	### READING DATA FROM DATABASE
+	
+	# Load synthetic data:
+	dat0 <- read.database(db.path,
+						country,
+						disease,
+						synthetic,
+						source.keys,
+						eventtype,
+						eventtype2,
+						social.struct)
 	
 	inc.tb <- convert.for.backtest(dat0)
 	
@@ -679,7 +348,6 @@ backtest.fcast.db <- function(db.path,
 	trunc.type <- as.character(prm[prm[,1]=="trunc.type",2])
 	trunc.date <- as.numeric(as.character(prm[prm[,1]=="trunc.date",2]))
 	trunc.gen  <- as.numeric(as.character(prm[prm[,1]=="trunc.gen",2]))
-	
 	if(trunc.type=="date") trunc.gen <- NULL
 	if(trunc.type=="generation") trunc.date <- NULL
 	if(trunc.type!="generation" & trunc.type!="date") trunc.gen <- trunc.date <- NULL
@@ -702,6 +370,23 @@ backtest.fcast.db <- function(db.path,
 		GI.stdv <- sqrt(GIvar)
 	}
 	
+	# approximate generation interval length:
+	inc.tb$GI <- GI.mean.true
+	
+	# plot truncated data:
+	if(plotdata){
+		ss <- gregexpr(source.keys,pattern = ";",fixed = TRUE)[[1]][1]
+		pdf(paste0("plot-data-",substr(source.keys,start = 1,stop = ss-1),".pdf"),width = 15,height=10)
+		if(is.null(trunc.date)) ttr <- GI.mean.true*trunc.gen
+		if(is.null(trunc.gen)) ttr <- trunc.date
+		inc.plot <- subset(inc.tb, tb<=ttr)
+		g <- ggplot(inc.plot) + geom_line(aes(x=tb,y=inc))
+		g <- g + facet_wrap(~mc)
+		g <- g + ggtitle(source.keys)
+		plot(g)
+		dev.off()
+	}
+		
 	# This loop performs the forecast 
 	# on every synthetic data set.
 	# Each forecast is evaluated with 
@@ -723,20 +408,10 @@ backtest.fcast.db <- function(db.path,
 		inc.tb <- subset(inc.tb, mc %in% idx.apply)
 	}
 	
-	inc.tb$datafile <- source.keys
-	
-	# approximate generation interval length:
-	inc.tb$GI <- GI.mean.true
+	# to delete when sure -->  inc.tb$datafile <- source.keys
+
 	
 	### Parallel execution:
-	
-	# Object 'all.sim' can be very large
-	# when many synthetic data were generated
-	# but this object is not used (for now).
-	# So, removed from memory before being exported
-	# because it can crash the memory
-	rm("all.sim")
-	
 	sfExportAll()
 	res0 <- sfSapply(idx.apply, 
 					 simplify = FALSE,
@@ -943,37 +618,37 @@ plot.backtest.all <- function(x) {
 	g <- g + theme(text = element_text(size = 28),
 				   strip.text.x = element_text(size = 10))
 	g <- g + xlab("MAQE") + ylab("Bias")
-	
+					   
 	g.ds <- g + facet_wrap(~dataset)
 	plot(g.ds)
 	
 	g2 <- ggplot(D) + theme(text = element_text(size=28))
 	
 	g.R0.b <- g2 + geom_pointrange(aes(x=factor(R0),
-									   y=b.md,
-									   ymin=b.lo,
-									   ymax=b.hi,
-									   colour=model,shape=model),size=1,
-								   position =position_dodge(width = 0.3)) 
+											  y=b.md,
+											  ymin=b.lo,
+											  ymax=b.hi,
+											  colour=model,shape=model),size=1,
+									 position =position_dodge(width = 0.3)) 
 	g.R0.b <- g.R0.b + facet_grid(~DOLI) + geom_hline(yintercept = 0)+ ylab("Bias")
 	plot(g.R0.b)
 	
 	g.R0.s <- g2 + geom_pointrange(aes(x=factor(R0),
-									   y=s.md,
-									   ymin=s.lo,
-									   ymax=s.hi,
-									   colour=model,shape=model),size=1,
-								   position =position_dodge(width = 0.3)) 
+											  y=s.md,
+											  ymin=s.lo,
+											  ymax=s.hi,
+											  colour=model,shape=model),size=1,
+										  position =position_dodge(width = 0.3)) 
 	g.R0.s <- g.R0.s + facet_grid(~DOLI)
 	g.R0.s <- g.R0.s + scale_y_log10()+ ylab("MAQE")
 	plot(g.R0.s)
 	
 	g.DOLI.s <- g2 + geom_pointrange(aes(x=factor(DOLI),
-										 y=s.md,
-										 ymin=s.lo,
-										 ymax=s.hi,
-										 colour=model,shape=model),size=1,
-									 position =position_dodge(width = 0.3)) 
+											  y=s.md,
+											  ymin=s.lo,
+											  ymax=s.hi,
+											  colour=model,shape=model),size=1,
+										  position =position_dodge(width = 0.3)) 
 	g.DOLI.s <- g.DOLI.s + facet_grid(~R0) 
 	g.DOLI.s <- g.DOLI.s + scale_y_log10()+ ylab("MAQE")
 	plot(g.DOLI.s)
@@ -1049,5 +724,85 @@ plot.backtest.all.db <- function(x) {
 }
 
 
+### - - - - - - - - - - - - - - -
+### --- Run the backtesting ---
+### - - - - - - - - - - - - - - -
+
+# Models used to generate synthetic data:
+syn.models <- list("SEmInR", "RESuDe")
+# Identify the source names of  synthetic data
+db.path <- "../Datsid/bcktest.db"
+use.db  <- TRUE
+bcktest <- get.list.sources(db.path = db.path)
+idx <-  lapply(syn.models, grepl,x = bcktest )
+idx <- rowSums(matrix(unlist(idx),ncol=length(syn.models)))
+bcktest <- bcktest[as.logical(idx)]
+
+# Read all data available:
+cmd <- "ls ./data/*.RData"
+flist <- system(command = cmd, intern = TRUE)
+
+# Backtest every data sets:
+
+x <- list()
+ 
+pdf("plot_data.pdf",width=25,height = 20)
+plot.data(db.path = db.path, 
+		  source.keys.vec = bcktest, 
+		  eventtype = 'incidence')
+dev.off()
 
 
+if(use.db){
+	for(i in 1:length(bcktest)){
+		message(paste("data sets:",i,"/", length(bcktest), bcktest[i]))
+		x[[i]] <- backtest.fcast.db(db.path     = db.path,
+									source.keys = bcktest[i],
+									eventtype   = "incidence",
+									plotdata    = TRUE)
+	}
+}
+if(!use.db){
+	for(i in 1:length(flist)){
+		message(paste("data sets:",i,"/",length(flist),flist[i]))
+		x[[i]] <- backtest.fcast(RData.file = flist[i])
+	}
+}
+
+save.image("backtest.RData")
+message("\n--> Backtesting done.\n")
+
+
+# = = = = Plots = = = = 
+
+message("\nPlotting all backtests...",appendLF = F)
+
+pdf("plot_backtest.pdf",width=15,height = 15)
+g <- list()
+if(use.db) V <- bcktest
+if(!use.db) V <- flist
+
+for(i in 1:length(V)){
+	msg.ok <- 	paste("plotting results from data sets:",i,"/",
+					 length(V),V[i],": OK")
+	msg.fail <-	paste("plotting results from data sets:",i,"/",
+					  length(V),V[i],": Failed!")
+	
+	if(is.na(x[[i]])) message(msg.fail)
+	
+	if(!is.na(x[[i]])){
+		g[[i]] <- plot.backtest.db(x[[i]])
+		try.plot <- try(plot(g[[i]]), silent = TRUE)
+		if(class(try.plot)!="try-error") message(msg.ok)
+		if(class(try.plot)=="try-error") message(msg.fail)
+	}
+}
+dev.off()
+
+try(plot.backtest.all.db(x), silent=TRUE)
+message("done.")
+
+
+# ==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+t2 <- as.numeric(Sys.time())
+message(paste("Finished in",round((t2-t1)/60,2),"min"))

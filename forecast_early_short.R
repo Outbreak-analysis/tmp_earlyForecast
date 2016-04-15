@@ -360,10 +360,11 @@ fcast.inc.early.short <- function(prms, do.plot=FALSE){
 	# ==== Plots ====
 	if (do.plot){
 		par(mfrow=c(3,2))
-		plot.exp.phase(dat)
-		plot.GI(g,GI.dist)
-		plot.all(model, Restim,dat, dat.full, 
-				 inc.f.m, inc.f.lo, inc.f.hi)
+		try(plot.exp.phase(dat),silent = T)
+		try(plot.GI(g,GI.dist),silent = T)
+		try(plot.all(model, Restim,dat, dat.full, 
+				 inc.f.m, inc.f.lo, inc.f.hi),
+			silent = T)
 	}
 	# Target data (if exists, for testing purpose)
 	target.dat <- NULL
