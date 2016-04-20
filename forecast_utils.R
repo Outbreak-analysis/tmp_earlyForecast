@@ -163,11 +163,11 @@ dist.target <- function(fcast, rel.err = FALSE){
 
 
 create.model.prm <- function(dat,
-						  dat.full,
-						  horiz.forecast ,  
-						  GI.mean,GI.stdv,
-						  GI.dist,
-						  cori.window){
+							 dat.full,
+							 horiz.forecast ,  
+							 GI.mean,GI.stdv,
+							 GI.dist,
+							 cori.window){
 	
 	PRM <- list(Cori = list(model = "CoriParam",  
 							dat = dat,
@@ -207,24 +207,24 @@ create.model.prm <- function(dat,
 }
 
 fcast.wrap <- function(mc, inc.tb, 
-						trunc.date,
-						trunc.generation,
-						horiz.forecast,
-						GI.mean, GI.stdv,
-						GI.dist = "gamma",
-						cori.window = 3,
-						do.plot = FALSE){
+					   trunc.date,
+					   trunc.generation,
+					   horiz.forecast,
+					   GI.mean, GI.stdv,
+					   GI.dist = "gamma",
+					   cori.window = 3,
+					   do.plot = FALSE){
 	### FORECASTING FUNCTION:
 	### CALLS EVERY MODELS
 	
 	# Read incidence data:
 	x <- read.incidence.obj(inc.tb = inc.tb,
-						 type = "simulated",
-						 find.epi.start.window = horiz.forecast + 3,
-						 find.epi.start.thresrate = 0.5,
-						 truncate.date = trunc.date,
-						 truncate.generation = trunc.generation,
-						 mc.choose = mc)
+							type = "simulated",
+							find.epi.start.window = horiz.forecast + 3,
+							find.epi.start.thresrate = 0.5,
+							truncate.date = trunc.date,
+							truncate.generation = trunc.generation,
+							mc.choose = mc)
 	if(is.na(x)) return(NULL)
 	
 	dat <- x[["dat"]]
@@ -234,12 +234,12 @@ fcast.wrap <- function(mc, inc.tb,
 	
 	# Set parameters for every models:
 	PRM <- create.model.prm(dat,
-						 dat.full,
-						 horiz.forecast ,  
-						 GI.mean, 
-						 GI.stdv,
-						 GI.dist = GI.dist,
-						 cori.window = cori.window)
+							dat.full,
+							horiz.forecast ,  
+							GI.mean, 
+							GI.stdv,
+							GI.dist = GI.dist,
+							cori.window = cori.window)
 	# Forecast:
 	fcast <- try(lapply(PRM,
 						fcast.inc.early.short,
@@ -256,6 +256,38 @@ fcast.wrap <- function(mc, inc.tb,
 				t.epi.start = t.epi.start,
 				t.epi.trunc = t.epi.trunc))
 }
+
+
+fcast.wrap.mc <- function(m, dat.all,ttrunc,horiz.forecast,GI.mean,GI.stdv){
+	
+	### WRAP FOR PARALLEL CODE IN THE MONTE CARLO LOOP
+	
+	# Extract one realization:
+	dat.full <- subset(dat.all, mc == m)
+	# Find practical start of epidemic:
+	tstart <- find.epi.start(dat.full$inc, w=4, thres.rate = 0.6)
+	# shift times such that t=tstart --> t=1
+	dat.no.trunc     <- subset(dat.full, tb >= tstart)
+	dat.no.trunc$tb  <- dat.no.trunc$tb - tstart + 1
+	# Truncates:
+	dat.chopped <- subset(dat.no.trunc, tb <= ttrunc)
+	
+	# Forecast scores:
+	res <- fcast.wrap.new(mc       = m, 
+						  dat.full = dat.no.trunc, 
+						  dat      = dat.chopped,
+						  horiz.forecast = horiz.forecast,
+						  GI.mean  = as.numeric(GI.mean), 
+						  GI.stdv  = as.numeric(GI.stdv),
+						  GI.dist  = "gamma",
+						  cori.window = 3,
+						  rel.err = T,
+						  do.plot = T)
+	return(res)
+}
+
+
+
 
 fcast.wrap.new <- function(mc, dat.full, dat,
 						   horiz.forecast,
