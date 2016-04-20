@@ -35,6 +35,7 @@ bcktest <- get.list.sources(db.path = db.path)
 idx <- lapply(syn.models, grepl,x = bcktest )
 idx <- rowSums(matrix(unlist(idx),ncol=length(syn.models)))
 bcktest <- bcktest[as.logical(idx)]
+n.bcktest <- length(bcktest)
 
 # Backtest every data sets:
 file.prm.bcktst <- 'prm_multi_bcktest.csv'
@@ -42,7 +43,8 @@ fpb <- read.csv(file.prm.bcktst,header = F)
 horiz.forecast <- as.numeric(as.character(fpb[as.character(fpb[,1])=="horiz.forecast",2]))
 GI.bias <- as.numeric(as.character(fpb[as.character(fpb[,1])=="GI.bias",2]))
 n.MC.max <- as.numeric(as.character(fpb[as.character(fpb[,1])=="n.MC.max",2]))
-n.bcktest <- length(bcktest)
+CI <- as.numeric(as.character(fpb[as.character(fpb[,1])=="CI",2]))
+multicores <- as.numeric(as.character(fpb[as.character(fpb[,1])=="parallel",2]))
 
 sc.tmp <- list()
 
@@ -55,21 +57,23 @@ for(i in 1:n.bcktest){
 	source <- dat.all$source[1]
 	print(paste(i,"/",n.bcktest,":",source))
 	# The 'true' parameters that generated these epidemics:
-	trueparam <- get.synthetic.epi.param(source = source)
-	GI.mean <- get.GI(trueparam)['GI.mean']
-	GI.stdv <- sqrt(get.GI(trueparam)['GI.var'])
+	trueparam  <- get.synthetic.epi.param(source = source)
+	GI.mean    <- get.GI(trueparam)['GI.mean']
+	GI.stdv    <- sqrt(get.GI(trueparam)['GI.var'])
 	
 	# Find time (after start date) 
 	# to truncate full data (to make forecasts):
-	ttrunc <- ceiling(get.trunc.time(file = file.prm.bcktst,
+	ttrunc     <- ceiling(get.trunc.time(file = file.prm.bcktst,
 									 trueparam = trueparam))
 	# Parallel execution for a given scenario
 	# across all MC realizations:
 	n.cores <- detectCores()
+	if(!multicores) n.cores <- 1
 	sfInit(parallel = (n.cores>1), 
 		   cpu = n.cores)
 	sfLibrary(R0)
 	if(!use.DC.version.of.EpiEstim) sfLibrary(EpiEstim)
+	
 	idx.apply <- mcvec
 	message(paste("Synthetic data contains",length(idx.apply),"MC iterations"))
 	# Reduce backtesting to 
@@ -82,23 +86,25 @@ for(i in 1:n.bcktest){
 	res.parallel <- sfSapply(idx.apply, 
 							 simplify = FALSE,
 							 fcast.wrap.mc,
-							 dat.all = dat.all,
-							 ttrunc = ttrunc,
+							 dat.all  = dat.all,
+							 ttrunc   = ttrunc,
 							 horiz.forecast = horiz.forecast,
-							 GI.mean = GI.mean,
-							 GI.stdv = GI.stdv
+							 GI.mean  = GI.mean,
+							 GI.stdv  = GI.stdv
 	)
 	sfStop()
 	# Store each scenario in a list
 	sc.tmp[[i]] <- do.call('rbind',res.parallel)
+	sc.tmp[[i]]$modelsyndata <- substr(x = source, start = 1, stop=6)
 	sc.tmp[[i]]$source <- source
+	sc.tmp[[i]]$R0 <- trueparam['R0']
+	sc.tmp[[i]]$GI.mean <- GI.mean
 }
 # Merge everything:
 sc <- do.call('rbind',sc.tmp)
 
 # Summary statistics:
-CI <- 0.95
-scsum <- ddply(sc,c('model','source'),summarize, 
+scsum <- ddply(sc,c('model','source','modelsyndata','R0','GI.mean'),summarize, 
 			   ME.med    = median(ME),
 			   ME.lo     = quantile(ME,probs = 0.5+CI/2),
 			   ME.hi     = quantile(ME,probs = 0.5-CI/2),
@@ -107,19 +113,7 @@ scsum <- ddply(sc,c('model','source'),summarize,
 			   MAE.hi    = quantile(MAE,probs = 0.5-CI/2))
 
 # Plot:
-pdf(file = 'scores-summary.pdf', width=25,height =15)
-g <- ggplot(scsum)+geom_point(aes(x=MAE.med,y=ME.med,
-								  shape = model, colour=model),
-							  size = 1.5)
-g <- g + geom_segment(aes(x=MAE.lo,xend=MAE.hi,y=ME.med,yend=ME.med, colour=model),alpha=0.5)
-g <- g + geom_segment(aes(y=ME.lo,yend=ME.hi,x=MAE.med,xend=MAE.med, colour=model),alpha=0.5)
-g <- g + facet_wrap(~source)
-g <- g + geom_hline(yintercept=0,linetype = 2)
-g <- g + scale_x_log10()
-plot(g)
-g <- g + facet_wrap(~source,scales = 'free')
-plot(g)
-dev.off()
+plot.scores(scsum)
 
 
 # ==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
