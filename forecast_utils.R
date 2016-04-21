@@ -282,7 +282,7 @@ fcast.wrap.mc <- function(m, dat.all,ttrunc,horiz.forecast,GI.mean,GI.stdv){
 						  GI.dist  = "gamma",
 						  cori.window = 3,
 						  rel.err = T,
-						  do.plot = T)
+						  do.plot = FALSE)
 	return(res)
 }
 
