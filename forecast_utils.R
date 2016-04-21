@@ -258,7 +258,7 @@ fcast.wrap <- function(mc, inc.tb,
 }
 
 
-fcast.wrap.mc <- function(m, dat.all,ttrunc,horiz.forecast,GI.mean,GI.stdv){
+fcast.wrap.mc <- function(m, dat.all,ttrunc,horiz.forecast,GI.mean,GI.stdv,do.plot){
 	
 	### WRAP FOR PARALLEL CODE IN THE MONTE CARLO LOOP
 	
@@ -281,8 +281,8 @@ fcast.wrap.mc <- function(m, dat.all,ttrunc,horiz.forecast,GI.mean,GI.stdv){
 						  GI.stdv  = as.numeric(GI.stdv),
 						  GI.dist  = "gamma",
 						  cori.window = 3,
-						  rel.err = T,
-						  do.plot = FALSE)
+						  rel.err = TRUE,
+						  do.plot = do.plot)
 	return(res)
 }
 
@@ -415,11 +415,40 @@ get.trunc.time <- function(file,trueparam){
 plot.scores <-function(scsum){
 	
 	pdf(file = 'scores-summary.pdf', width=25,height =15)
+	
+	### OVERALL RANKING
+	CI <- 0.8
+	z <- ddply(scsum,c('model'),summarize,
+			   ME.med2 = median(ME.med), 
+			   ME.med.lo = quantile(ME.med, probs = 0.5-CI/2), 
+			   ME.med.hi = quantile(ME.med, probs = 0.5+CI/2), 
+			   MAE.med2 = median(MAE.med),
+			   MAE.med.lo = quantile(MAE.med, probs = 0.5-CI/2), 
+			   MAE.med.hi = quantile(MAE.med, probs = 0.5+CI/2))
+	g <- ggplot(z)
+	g <- g + geom_point(aes(x=MAE.med2,y=ME.med2,shape=model,colour=model),size=8)
+	g <- g + geom_segment(aes(x=MAE.med.lo,xend=MAE.med.hi,y=ME.med2,yend=ME.med2,
+							  shape=model,colour=model),size=6,alpha=0.3)
+	g <- g + geom_segment(aes(x=MAE.med2,xend=MAE.med2,y=ME.med.lo,yend=ME.med.hi,
+							  shape=model,colour=model),size=6,alpha=0.3)
+	g <- g + geom_hline(yintercept=0,linetype=2,size=2)
+	g <- g + scale_x_log10()
+	g <- g + ggtitle('Overall Summary - Median of Median')
+	plot(g)
+	
+	### DETAILS BY SCENARIO:
+	
+	size.pt  <- 3
+	size.seg <- 2
+	alpha.seg <- 0.4
+	
 	g <- ggplot(scsum)+geom_point(aes(x=MAE.med,y=ME.med,
 									  shape = model, colour=model),
-								  size = 1.5)
-	g <- g + geom_segment(aes(x=MAE.lo,xend=MAE.hi,y=ME.med,yend=ME.med, colour=model),alpha=0.5)
-	g <- g + geom_segment(aes(y=ME.lo,yend=ME.hi,x=MAE.med,xend=MAE.med, colour=model),alpha=0.5)
+								  size = size.pt)
+	g <- g + geom_segment(aes(x=MAE.lo,xend=MAE.hi,y=ME.med,yend=ME.med, colour=model),
+						  size = size.seg, alpha=alpha.seg)
+	g <- g + geom_segment(aes(y=ME.lo,yend=ME.hi,x=MAE.med,xend=MAE.med, colour=model),
+						  size = size.seg, alpha=alpha.seg)
 	g <- g + facet_wrap(~source)
 	g <- g + geom_hline(yintercept=0,linetype = 2)
 	g <- g + scale_x_log10()
@@ -429,7 +458,7 @@ plot.scores <-function(scsum){
 	
 	g.R0 <-  ggplot(scsum)+geom_point(aes(x=factor(R0), y=MAE.med, 
 										  colour=model,
-										  shape=model),size=2)
+										  shape=model),size=size.pt)
 	g.R0 <- g.R0 + facet_wrap(~modelsyndata+GI.mean)
 	g.R0 <- g.R0 + scale_y_log10()
 	g.R0 <- g.R0 + ggtitle('MAE w.r.t. R0 (GI mean faceted)')
@@ -437,7 +466,7 @@ plot.scores <-function(scsum){
 	
 	g.GI <-  ggplot(scsum)+geom_point(aes(x=(GI.mean), y=MAE.med, 
 										  colour=model,
-										  shape=model),size=2)
+										  shape=model),size=size.pt)
 	g.GI <- g.GI + facet_wrap(~modelsyndata+R0)
 	g.GI <- g.GI + scale_y_log10()
 	g.GI <- g.GI + ggtitle('MAE w.r.t. GI (R0 faceted)')
@@ -446,7 +475,7 @@ plot.scores <-function(scsum){
 	# ME
 	g.R0 <-  ggplot(scsum)+geom_point(aes(x=factor(R0), y=ME.med, 
 										  colour=model,
-										  shape=model),size=2)
+										  shape=model),size=size.pt)
 	g.R0 <- g.R0 + facet_wrap(~modelsyndata+GI.mean, scales='free')
 	g.R0 <- g.R0 + ggtitle('ME w.r.t. R0 (GI mean faceted)')
 	g.R0 <- g.R0 + geom_hline(yintercept=0,linetype=2)
@@ -455,7 +484,7 @@ plot.scores <-function(scsum){
 	g.GI <-  ggplot(scsum)+geom_point(aes(x = GI.mean, 
 										  y = ME.med, 
 										  colour = model,
-										  shape = model),size=2)
+										  shape = model),size=size.pt)
 	g.GI <- g.GI + facet_wrap(~modelsyndata+R0, scales='free')
 	g.GI <- g.GI + ggtitle('ME w.r.t. GI (R0 faceted)')
 	g.GI <- g.GI + geom_hline(yintercept=0,linetype=2)

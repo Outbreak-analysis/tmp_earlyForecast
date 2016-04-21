@@ -40,11 +40,14 @@ n.bcktest <- length(bcktest)
 # Backtest every data sets:
 file.prm.bcktst <- 'prm_multi_bcktest.csv'
 fpb <- read.csv(file.prm.bcktst,header = F)
-horiz.forecast <- as.numeric(as.character(fpb[as.character(fpb[,1])=="horiz.forecast",2]))
-GI.bias <- as.numeric(as.character(fpb[as.character(fpb[,1])=="GI.bias",2]))
-n.MC.max <- as.numeric(as.character(fpb[as.character(fpb[,1])=="n.MC.max",2]))
-CI <- as.numeric(as.character(fpb[as.character(fpb[,1])=="CI",2]))
-multicores <- as.numeric(as.character(fpb[as.character(fpb[,1])=="parallel",2]))
+read_prm <- function(x){
+	as.numeric(as.character(fpb[as.character(fpb[,1])==x,2]))
+}
+horiz.forecast <- read_prm('horiz.forecast') 
+GI.bias        <- read_prm('GI.bias') 
+n.MC.max       <- read_prm('n.MC.max')
+CI             <- read_prm('CI') 
+multicores     <- read_prm('parallel')
 
 sc.tmp <- list()
 
@@ -90,7 +93,8 @@ for(i in 1:n.bcktest){
 							 ttrunc   = ttrunc,
 							 horiz.forecast = horiz.forecast,
 							 GI.mean  = GI.mean,
-							 GI.stdv  = GI.stdv
+							 GI.stdv  = GI.stdv,
+							 do.plot = (n.cores==1)
 	)
 	sfStop()
 	# Store each scenario in a list
