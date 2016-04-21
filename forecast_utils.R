@@ -429,7 +429,7 @@ plot.scores <-function(scsum){
 	
 	g.R0 <-  ggplot(scsum)+geom_point(aes(x=factor(R0), y=MAE.med, 
 										  colour=model,
-										  shape=model))
+										  shape=model),size=2)
 	g.R0 <- g.R0 + facet_wrap(~modelsyndata+GI.mean)
 	g.R0 <- g.R0 + scale_y_log10()
 	g.R0 <- g.R0 + ggtitle('MAE w.r.t. R0 (GI mean faceted)')
@@ -437,7 +437,7 @@ plot.scores <-function(scsum){
 	
 	g.GI <-  ggplot(scsum)+geom_point(aes(x=(GI.mean), y=MAE.med, 
 										  colour=model,
-										  shape=model))
+										  shape=model),size=2)
 	g.GI <- g.GI + facet_wrap(~modelsyndata+R0)
 	g.GI <- g.GI + scale_y_log10()
 	g.GI <- g.GI + ggtitle('MAE w.r.t. GI (R0 faceted)')
@@ -446,7 +446,7 @@ plot.scores <-function(scsum){
 	# ME
 	g.R0 <-  ggplot(scsum)+geom_point(aes(x=factor(R0), y=ME.med, 
 										  colour=model,
-										  shape=model))
+										  shape=model),size=2)
 	g.R0 <- g.R0 + facet_wrap(~modelsyndata+GI.mean, scales='free')
 	g.R0 <- g.R0 + ggtitle('ME w.r.t. R0 (GI mean faceted)')
 	g.R0 <- g.R0 + geom_hline(yintercept=0,linetype=2)
@@ -455,7 +455,7 @@ plot.scores <-function(scsum){
 	g.GI <-  ggplot(scsum)+geom_point(aes(x = GI.mean, 
 										  y = ME.med, 
 										  colour = model,
-										  shape = model))
+										  shape = model),size=2)
 	g.GI <- g.GI + facet_wrap(~modelsyndata+R0, scales='free')
 	g.GI <- g.GI + ggtitle('ME w.r.t. GI (R0 faceted)')
 	g.GI <- g.GI + geom_hline(yintercept=0,linetype=2)
