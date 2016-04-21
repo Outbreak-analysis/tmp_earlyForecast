@@ -103,12 +103,14 @@ for(i in 1:n.bcktest){
 	sc.tmp[[i]]$source <- source
 	sc.tmp[[i]]$R0 <- trueparam['R0']
 	sc.tmp[[i]]$GI.mean <- GI.mean
+	sc.tmp[[i]]$nMCdata <- length(mcvec)
 }
 # Merge everything:
 sc <- do.call('rbind',sc.tmp)
 
 # Summary statistics:
-scsum <- ddply(sc,c('model','source','modelsyndata','R0','GI.mean'),summarize, 
+scsum <- ddply(sc,c('model','source','modelsyndata','R0','GI.mean','nMCdata'),
+			   summarize, 
 			   ME.med    = median(ME),
 			   ME.lo     = quantile(ME,probs = 0.5+CI/2),
 			   ME.hi     = quantile(ME,probs = 0.5-CI/2),
@@ -119,6 +121,8 @@ scsum <- ddply(sc,c('model','source','modelsyndata','R0','GI.mean'),summarize,
 # Plot:
 plot.scores(scsum)
 
+# Save all:
+save.image('bcktst.RData')
 
 # ==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 t2 <- as.numeric(Sys.time())

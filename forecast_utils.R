@@ -438,8 +438,11 @@ plot.scores <-function(scsum){
 	
 	### DETAILS BY SCENARIO:
 	
-	size.pt  <- 3
-	size.seg <- 2
+	scsum$source2 <- paste(scsum$source,"\nMC",scsum$nMCdata)
+	
+	# cosmetics
+	size.pt   <- 3
+	size.seg  <- 2
 	alpha.seg <- 0.4
 	
 	g <- ggplot(scsum)+geom_point(aes(x=MAE.med,y=ME.med,
@@ -449,11 +452,12 @@ plot.scores <-function(scsum){
 						  size = size.seg, alpha=alpha.seg)
 	g <- g + geom_segment(aes(y=ME.lo,yend=ME.hi,x=MAE.med,xend=MAE.med, colour=model),
 						  size = size.seg, alpha=alpha.seg)
-	g <- g + facet_wrap(~source)
+	g <- g + facet_wrap(~source2)
 	g <- g + geom_hline(yintercept=0,linetype = 2)
 	g <- g + scale_x_log10()
+	g <- g + theme(strip.text.x = element_text(size = 8))
 	plot(g)
-	g <- g + facet_wrap(~source,scales = 'free')
+	g <- g + facet_wrap(~source2,scales = 'free')
 	plot(g)
 	
 	g.R0 <-  ggplot(scsum)+geom_point(aes(x=factor(R0), y=MAE.med, 
@@ -590,7 +594,7 @@ plot.data <- function(db.path,
 	inc.tb <- convert.for.backtest(dat0)
 	df <- subset(inc.tb, mc <9)
 	g <- ggplot(df) + geom_line(aes(x=tb, y=inc, colour=factor(mc)))
-	g <- g + facet_wrap(~source,scales="free")
+	g <- g + facet_wrap(~source2,scales="free")
 	g <- g + scale_y_log10()
 	plot(g)
 }
