@@ -70,7 +70,7 @@ shinyServer(function(input, output) {
 			
 			### Forecast
 			fcast <- lapply(PRM.chosen,
-							fcast.inc.early.short,
+							fcast_incidence,
 							do.plot= FALSE)
 			# plot forecast
 			compare.fcast.early.shiny(fcast, dolog = dolog)

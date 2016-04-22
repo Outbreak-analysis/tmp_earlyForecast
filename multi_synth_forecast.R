@@ -21,10 +21,7 @@ if(use.DC.version.of.EpiEstim) source("EstimationR.R")
 source("read-data.R")
 source("forecast_early_short.R")
 source("forecast_utils.R")
-
-### - - - - - - - - - - - - - - -
-### --- Run the backtesting ---
-### - - - - - - - - - - - - - - -
+source("scores.R")
 
 # Models used to generate synthetic data:
 syn.models <- list("SEmInR", "RESuDe")
@@ -37,7 +34,7 @@ idx <- rowSums(matrix(unlist(idx),ncol=length(syn.models)))
 bcktest <- bcktest[as.logical(idx)]
 n.bcktest <- length(bcktest)
 
-# Backtest every data sets:
+# Backtesting Parameters 
 file.prm.bcktst <- 'prm_multi_bcktest.csv'
 fpb <- read.csv(file.prm.bcktst,header = F)
 read_prm <- function(x){
@@ -48,9 +45,13 @@ GI.bias        <- read_prm('GI.bias')
 n.MC.max       <- read_prm('n.MC.max')
 CI             <- read_prm('CI') 
 multicores     <- read_prm('parallel')
+cori.window    <- read_prm('cori.window')
+rel.err        <- read_prm('relError')
 
+### 
+### --- Run the backtesting ---
+### 
 sc.tmp <- list()
-
 for(i in 1:n.bcktest){
 	# Retrieve all synthetic epidemics from a model parameter set:
 	dat.all <- get.synthetic.data.db(db.path     = db.path,
@@ -89,35 +90,29 @@ for(i in 1:n.bcktest){
 	res.parallel <- sfSapply(idx.apply, 
 							 simplify = FALSE,
 							 fcast.wrap.mc,
-							 dat.all  = dat.all,
-							 ttrunc   = ttrunc,
-							 horiz.forecast = horiz.forecast,
-							 GI.mean  = GI.mean,
-							 GI.stdv  = GI.stdv,
-							 do.plot = (n.cores==1)
+							 dat.all     = dat.all,
+							 ttrunc      = ttrunc,
+							 horiz.fcast = horiz.forecast,
+							 GI.mean     = GI.mean,
+							 GI.stdv     = GI.stdv,
+							 cori.window = cori.window,
+							 rel.err     = rel.err,
+							 do.plot     = (n.cores==1)
 	)
 	sfStop()
-	# Store each scenario in a list
-	sc.tmp[[i]] <- do.call('rbind',res.parallel)
+
+	### Calculate scores
+	sc.tmp[[i]] <- calc.scores(res.parallel,re.err)
+	
 	sc.tmp[[i]]$modelsyndata <- substr(x = source, start = 1, stop=6)
-	sc.tmp[[i]]$source <- source
-	sc.tmp[[i]]$R0 <- trueparam['R0']
-	sc.tmp[[i]]$GI.mean <- GI.mean
-	sc.tmp[[i]]$nMCdata <- length(mcvec)
+	sc.tmp[[i]]$source       <- source
+	sc.tmp[[i]]$R0           <- trueparam['R0']
+	sc.tmp[[i]]$GI.mean      <- GI.mean
+	sc.tmp[[i]]$nMCdata      <- length(mcvec)
 }
-# Merge everything:
-sc <- do.call('rbind',sc.tmp)
-
-# Summary statistics:
-scsum <- ddply(sc,c('model','source','modelsyndata','R0','GI.mean','nMCdata'),
-			   summarize, 
-			   ME.med    = median(ME),
-			   ME.lo     = quantile(ME,probs = 0.5+CI/2),
-			   ME.hi     = quantile(ME,probs = 0.5-CI/2),
-			   MAE.med   = median(MAE),
-			   MAE.lo    = quantile(MAE,probs = 0.5+CI/2),
-			   MAE.hi    = quantile(MAE,probs = 0.5-CI/2))
-
+# Merge and summarize scores for 
+# all bactesting scenarios:
+scsum <- merge.sum.scores(sc.tmp,CI)
 # Plot:
 plot.scores(scsum)
 

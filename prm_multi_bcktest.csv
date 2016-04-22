@@ -3,6 +3,8 @@ trunc.date,7
 trunc.gen,2
 horiz.forecast, 5
 GI.bias, 1.0
-n.MC.max, -99
+n.MC.max, 3
 CI, 0.95
 parallel, 1
+cori.window, 3
+relError,1

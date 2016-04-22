@@ -187,6 +187,8 @@ idea.forecast <- function(data,
 	inc.fcast.lo <- tmp[["qlo"]][fcast.rng]
 	inc.fcast.hi <- tmp[["qhi"]][fcast.rng]
 	
+
+	
 	if(do.plot){
 		par(mfrow=c(1,2))
 		
@@ -229,9 +231,13 @@ idea.forecast <- function(data,
 		}
 		grid()
 	}
-	return(list(inc.fcast = inc.fcast,
-				inc.fcast.lo = inc.fcast.lo,
-				inc.fcast.hi = inc.fcast.hi,
+	inc.f.m <- c(data, inc.fcast)
+	inc.f.hi <- c(data, inc.fcast.hi)
+	inc.f.lo <- c(data, inc.fcast.lo)
+	
+	return(list(inc.f.m  = inc.f.m,
+				inc.f.hi = inc.f.hi,
+				inc.f.lo = inc.f.lo,
 				R0 = x["R0"],
 				d = x["d"]) )
 }
